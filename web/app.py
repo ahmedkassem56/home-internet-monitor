@@ -186,6 +186,77 @@ async def api_daily(
     return {"data": data, "days": days}
 
 
+@app.get("/api/incidents", dependencies=[Depends(verify_auth)])
+async def api_incidents(
+    days: int = Query(7, description="Number of days to search for incidents")
+):
+    """Detect and list recent internet degradation incidents."""
+    now = time.time()
+    start_ts = now - (days * 86400)
+    
+    # Query 1-minute buckets for precise grouping
+    buckets = db.get_downsampled_pings(start_ts, now, bucket_seconds=60)
+    
+    incidents = []
+    current = None
+    good_streak = 0
+    REQUIRED_GOOD_MINUTES = 3
+    
+    for b in buckets:
+        ts = b["bucket_ts"]
+        tc = b["timeout_count"] or 0
+        total = b["total_count"] or 1
+        timeout_pct = tc / total
+        avg_lat = b["avg_latency"] if b["avg_latency"] is not None else 0
+        
+        is_bad = timeout_pct >= 0.5 or avg_lat >= 150
+        
+        if current is None:
+            if is_bad:
+                # Start new incident
+                itype = "Outage" if timeout_pct >= 0.5 else "High Latency"
+                current = {
+                    "start_ts": ts,
+                    "last_bad_ts": ts,
+                    "type": itype,
+                    "max_latency": avg_lat,
+                    "max_loss": timeout_pct * 100
+                }
+                good_streak = 0
+        else:
+            if is_bad:
+                current["last_bad_ts"] = ts
+                good_streak = 0
+                
+                # Upgrade severity if necessary
+                if timeout_pct >= 0.5 and current["type"] == "High Latency":
+                    current["type"] = "Outage"
+                if avg_lat > current["max_latency"]:
+                    current["max_latency"] = avg_lat
+                if (timeout_pct * 100) > current["max_loss"]:
+                    current["max_loss"] = timeout_pct * 100
+            else:
+                good_streak += 1
+                if good_streak >= REQUIRED_GOOD_MINUTES:
+                    # Resolve incident
+                    duration_seconds = (current["last_bad_ts"] + 60) - current["start_ts"]
+                    current["duration_minutes"] = max(1, int(duration_seconds / 60))
+                    incidents.append(current)
+                    current = None
+                    good_streak = 0
+                    
+    # Handle currently ongoing incident
+    if current is not None:
+        duration_seconds = (current["last_bad_ts"] + 60) - current["start_ts"]
+        current["duration_minutes"] = max(1, int(duration_seconds / 60))
+        current["ongoing"] = (good_streak == 0)
+        incidents.append(current)
+            
+    # Sort newest first and return top 50
+    incidents.sort(key=lambda x: x["start_ts"], reverse=True)
+    return {"data": incidents[:50]}
+
+
 @app.get("/api/info", dependencies=[Depends(verify_auth)])
 async def api_info():
     """Get database info and configuration."""

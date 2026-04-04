@@ -25,6 +25,7 @@ let historicalChart = null;
 let timeoutsChart = null;
 let currentRange = '6h';
 let heatmapDays = 7;
+let incidentsDays = 7;
 
 // ─── API Helpers ──────────────────────────────────────────────────────
 
@@ -52,6 +53,13 @@ function formatNumber(val) {
     if (val >= 1_000_000) return (val / 1_000_000).toFixed(1) + 'M';
     if (val >= 1_000) return (val / 1_000).toFixed(1) + 'K';
     return val.toLocaleString();
+}
+
+function formatDuration(minutes) {
+    if (minutes < 60) return `${minutes} min`;
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
 function formatTime(ts) {
@@ -591,6 +599,42 @@ async function updateDailyTable() {
     }).join('');
 }
 
+// ─── Incidents Table ──────────────────────────────────────────────────
+
+async function updateIncidentsTable() {
+    const data = await api(`/api/incidents?days=${incidentsDays}`);
+    if (!data || !data.data) return;
+
+    const tbody = document.getElementById('incidents-table-body');
+    const incidents = data.data;
+
+    if (incidents.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="table-loading">No incidents detected in this period! 🎉</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = incidents.map(i => {
+        const badgeClass = i.type === 'Outage' ? 'badge-outage' : 'badge-latency';
+        const typeHtml = `<span class="type-badge ${badgeClass}">${i.type}</span>` + 
+                         (i.ongoing ? ' <span class="type-badge badge-ongoing">Ongoing</span>' : '');
+                         
+        let severityText = '';
+        if (i.type === 'Outage') {
+            severityText = `Loss: <strong>${i.max_loss.toFixed(1)}%</strong>`;
+        } else {
+            severityText = `Max ping: <strong>${formatLatency(i.max_latency)}ms</strong>`;
+        }
+
+        return `<tr>
+            <td style="white-space: nowrap;">${formatDateTime(i.start_ts)}</td>
+            <td style="font-weight: 600; color: var(--text-primary);">${formatDuration(i.duration_minutes)}</td>
+            <td>${typeHtml}</td>
+            <td style="color: var(--text-secondary);">${severityText}</td>
+        </tr>`;
+    }).join('');
+}
+
+
 // ─── Info ─────────────────────────────────────────────────────────────
 
 async function updateInfo() {
@@ -633,6 +677,16 @@ document.getElementById('heatmap-range').addEventListener('click', (e) => {
     updateHeatmap();
 });
 
+document.getElementById('incidents-range').addEventListener('click', (e) => {
+    if (!e.target.classList.contains('range-btn')) return;
+
+    document.querySelectorAll('#incidents-range .range-btn').forEach(btn => btn.classList.remove('active'));
+    e.target.classList.add('active');
+
+    incidentsDays = parseInt(e.target.dataset.days);
+    updateIncidentsTable();
+});
+
 // ─── Initialization ───────────────────────────────────────────────────
 
 async function init() {
@@ -668,6 +722,7 @@ async function init() {
         updateTimeoutsChart(),
         updateHeatmap(),
         updateDailyTable(),
+        updateIncidentsTable(),
         updateInfo(),
     ]);
 
@@ -686,6 +741,7 @@ async function init() {
     setInterval(() => {
         updateHeatmap();
         updateDailyTable();
+        updateIncidentsTable();
         updateInfo();
     }, HEATMAP_REFRESH);
 }

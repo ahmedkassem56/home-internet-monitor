@@ -1,23 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Internet Monitor — Dashboard</title>
-    <meta name="description" content="Real-time internet quality monitoring dashboard with latency tracking and uptime statistics.">
+    <meta name="description"
+        content="Real-time internet quality monitoring dashboard with latency tracking and uptime statistics.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js?v=3"></script>
+    <script
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js?v=3"></script>
+    <link rel="stylesheet" href="/static/style.css?v=3">
 </head>
+
 <body>
     <!-- Header -->
     <header id="header">
         <div class="header-left">
             <div class="logo">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
                 </svg>
                 <h1>Internet Monitor</h1>
             </div>
@@ -37,9 +43,23 @@
         <section id="status-banner" class="status-banner status-unknown">
             <div class="status-content">
                 <div class="status-icon" id="status-icon">
-                    <svg id="status-icon-up" class="hidden" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-                    <svg id="status-icon-down" class="hidden" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                    <svg id="status-icon-unknown" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                    <svg id="status-icon-up" class="hidden" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                        <polyline points="22 4 12 14.01 9 11.01" />
+                    </svg>
+                    <svg id="status-icon-down" class="hidden" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                    </svg>
+                    <svg id="status-icon-unknown" width="48" height="48" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                        <line x1="12" y1="17" x2="12.01" y2="17" />
+                    </svg>
                 </div>
                 <div class="status-text">
                     <span class="status-label" id="status-label">Checking...</span>
@@ -156,7 +176,38 @@
                         </tr>
                     </thead>
                     <tbody id="daily-table-body">
-                        <tr><td colspan="7" class="table-loading">Loading...</td></tr>
+                        <tr>
+                            <td colspan="7" class="table-loading">Loading...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Recent Incidents -->
+        <section class="chart-section" id="section-incidents">
+            <div class="section-header">
+                <h2>Recent Incidents</h2>
+                <div class="range-picker" id="incidents-range">
+                    <button class="range-btn active" data-days="7">7 Days</button>
+                    <button class="range-btn" data-days="14">14 Days</button>
+                    <button class="range-btn" data-days="30">30 Days</button>
+                </div>
+            </div>
+            <div class="table-container">
+                <table id="incidents-table">
+                    <thead>
+                        <tr>
+                            <th>Started</th>
+                            <th>Duration</th>
+                            <th>Type</th>
+                            <th>Severity</th>
+                        </tr>
+                    </thead>
+                    <tbody id="incidents-table-body">
+                        <tr>
+                            <td colspan="4" class="table-loading">Loading incidents...</td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -190,6 +241,7 @@
     <!-- Global Tooltip -->
     <div id="global-tooltip"></div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=3"></script>
 </body>
+
 </html>

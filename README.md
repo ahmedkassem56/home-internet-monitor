@@ -15,6 +15,7 @@ This tool is specifically built to track down and prove ISP dropouts and latency
   - Historical zoomable time-series charts (1h, 6h, 24h, 7d, 30d).
   - Hourly heatmaps to easily spot recurring patterns (e.g., nightly throttling).
   - Daily summary tables and uptime statistics.
+  - Automated "Recent Incidents" tracker that dynamically links consecutive periods of packet loss and high latency into explicit logged events.
 - **Basic Auth:** Protects your data on public interfaces.
 - **Zero Dependencies (Frontend):** Uses vanilla HTML/CSS/JS with Chart.js included via CDN. No build pipelines or Node.js required.
 
@@ -69,6 +70,19 @@ sudo systemctl status ping-monitor-web
 sudo journalctl -u ping-monitor -f
 sudo journalctl -u ping-monitor-web -f
 ```
+
+## Incident Detection
+
+The dashboard automatically tracks and displays continuous periods of internet degradation. Behind the scenes, the backend analyzes ping data in 1-minute chunks. An **Incident** is recorded if either of the following criteria is met during a minute:
+
+- **High Latency**: Average ping over **150ms**.
+- **Outage** (Heavy Loss): More than **50% packet loss**.
+- **Resolution**: To prevent rapid "flapping", the connection must return to stable and stay clean for **3 consecutive minutes** before an incident is technically marked as "resolved".
+
+**Changing the criteria:**
+If you wish to configure the latency limit or the resolution criteria, you can directly modify `web/app.py`:
+1. Find `REQUIRED_GOOD_MINUTES = 3` inside `api_incidents` to change the resolution window.
+2. Find `is_bad = timeout_pct > 0.5 or avg_lat > 150` to adjust the baseline timeout percentage (`0.5`) or ping requirement (`150`).
 
 ## Updating
 
