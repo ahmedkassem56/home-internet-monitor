@@ -1,0 +1,30 @@
+# Internet Monitor Configuration
+# ================================
+
+# Ping target (your router's WireGuard IP)
+target: "10.200.0.2"
+
+# Ping interval in seconds (1 = every second, 5 = every 5 seconds)
+interval: 1
+
+# Ping timeout in seconds (how long to wait for a reply)
+timeout: 3
+
+# Number of ICMP packets per ping attempt
+count: 1
+
+# Database file path
+database: "/opt/internet-monitor/data/pings.db"
+
+# Data retention in days (older data is automatically purged)
+retention_days: 90
+
+# Web server settings
+web:
+  host: "0.0.0.0"
+  port: 8080
+
+# Authentication (used for web dashboard)
+auth:
+  username: "admin"
+  password: "changeme"  # CHANGE THIS before deploying!

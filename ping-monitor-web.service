@@ -1,0 +1,29 @@
+[Unit]
+Description=Internet Monitor - Web Dashboard
+Documentation=https://github.com/internet-monitor
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=monitor
+Group=monitor
+WorkingDirectory=/opt/internet-monitor
+ExecStart=/opt/internet-monitor/venv/bin/python -m web.app /opt/internet-monitor/config.yaml
+Restart=always
+RestartSec=5
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=ping-monitor-web
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/internet-monitor/data
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

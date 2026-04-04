@@ -1,0 +1,214 @@
+"""FastAPI web server for Internet Monitor dashboard."""
+
+import os
+import sys
+import time
+import secrets
+
+from fastapi import FastAPI, Query, Depends, HTTPException, status
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
+
+from monitor.config import load_config
+from monitor.database import PingDatabase
+
+# Load configuration
+config_path = sys.argv[1] if len(sys.argv) > 1 else None
+config = load_config(config_path)
+
+# Initialize database (read-only usage)
+db = PingDatabase(config["database"])
+
+# Auth config
+AUTH_USERNAME = config["auth"]["username"]
+AUTH_PASSWORD = config["auth"]["password"]
+
+# Create FastAPI app
+app = FastAPI(title="Internet Monitor", docs_url=None, redoc_url=None)
+
+# Security
+security = HTTPBasic()
+
+
+def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify HTTP Basic Auth credentials."""
+    username_ok = secrets.compare_digest(credentials.username.encode(), AUTH_USERNAME.encode())
+    password_ok = secrets.compare_digest(credentials.password.encode(), AUTH_PASSWORD.encode())
+    if not (username_ok and password_ok):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid credentials",
+            headers={"WWW-Authenticate": "Basic"},
+        )
+    return credentials
+
+
+# ─── Static Files ──────────────────────────────────────────────────────
+
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+
+@app.get("/", dependencies=[Depends(verify_auth)])
+async def serve_dashboard():
+    """Serve the main dashboard page."""
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+
+
+# Mount static files with auth not enforced (CSS/JS are non-sensitive)
+# but the HTML page itself requires auth via the route above.
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+# ─── Helper ────────────────────────────────────────────────────────────
+
+def parse_range(range_str: str) -> tuple[float, float]:
+    """Parse a time range string into (start_ts, end_ts) unix timestamps.
+
+    Supported formats: '1h', '6h', '24h', '7d', '30d', '90d'
+    """
+    now = time.time()
+    multipliers = {"m": 60, "h": 3600, "d": 86400}
+
+    suffix = range_str[-1].lower()
+    if suffix in multipliers:
+        try:
+            value = int(range_str[:-1])
+            return now - (value * multipliers[suffix]), now
+        except ValueError:
+            pass
+
+    raise HTTPException(status_code=400, detail=f"Invalid range format: {range_str}. Use e.g. '1h', '24h', '7d'")
+
+
+def auto_bucket_seconds(start_ts: float, end_ts: float) -> int:
+    """Automatically calculate bucket size for downsampling.
+
+    Target: ~500-1000 data points for smooth charts.
+    """
+    duration = end_ts - start_ts
+    if duration <= 300:        # <= 5 min: raw data (1s)
+        return 0
+    elif duration <= 3600:     # <= 1 hour: 5s buckets
+        return 5
+    elif duration <= 21600:    # <= 6 hours: 30s buckets
+        return 30
+    elif duration <= 86400:    # <= 24 hours: 2-min buckets
+        return 120
+    elif duration <= 604800:   # <= 7 days: 15-min buckets
+        return 900
+    else:                      # > 7 days: 1-hour buckets
+        return 3600
+
+
+# ─── API Routes ────────────────────────────────────────────────────────
+
+@app.get("/api/status", dependencies=[Depends(verify_auth)])
+async def api_status():
+    """Current status and last 10 pings."""
+    return db.get_status()
+
+
+@app.get("/api/stats", dependencies=[Depends(verify_auth)])
+async def api_stats(
+    range: str = Query("24h", description="Time range: 1h, 6h, 24h, 7d, 30d"),
+    start: float = Query(None, description="Custom start timestamp"),
+    end: float = Query(None, description="Custom end timestamp"),
+):
+    """Get aggregated statistics for a time range."""
+    if start is not None and end is not None:
+        start_ts, end_ts = start, end
+    else:
+        start_ts, end_ts = parse_range(range)
+
+    stats = db.get_stats(start_ts, end_ts)
+    stats["range"] = range
+    stats["start_ts"] = start_ts
+    stats["end_ts"] = end_ts
+    return stats
+
+
+@app.get("/api/pings", dependencies=[Depends(verify_auth)])
+async def api_pings(
+    range: str = Query("1h", description="Time range: 1h, 6h, 24h, 7d, 30d"),
+    start: float = Query(None, description="Custom start timestamp"),
+    end: float = Query(None, description="Custom end timestamp"),
+    bucket: int = Query(None, description="Bucket size in seconds (auto if omitted)"),
+):
+    """Get time-series ping data, auto-downsampled for large ranges."""
+    if start is not None and end is not None:
+        start_ts, end_ts = start, end
+    else:
+        start_ts, end_ts = parse_range(range)
+
+    # Determine bucket size
+    if bucket is not None:
+        bucket_seconds = bucket
+    else:
+        bucket_seconds = auto_bucket_seconds(start_ts, end_ts)
+
+    if bucket_seconds == 0:
+        # Return raw data
+        data = db.get_pings(start_ts, end_ts)
+    else:
+        data = db.get_downsampled_pings(start_ts, end_ts, bucket_seconds)
+
+    return {
+        "data": data,
+        "bucket_seconds": bucket_seconds,
+        "start_ts": start_ts,
+        "end_ts": end_ts,
+        "count": len(data),
+    }
+
+
+@app.get("/api/hourly", dependencies=[Depends(verify_auth)])
+async def api_hourly(
+    days: int = Query(7, description="Number of days of hourly data"),
+):
+    """Get hourly breakdown for heatmap visualization."""
+    now = time.time()
+    start_ts = now - (days * 86400)
+    data = db.get_hourly_summary(start_ts, now)
+    return {"data": data, "days": days}
+
+
+@app.get("/api/daily", dependencies=[Depends(verify_auth)])
+async def api_daily(
+    days: int = Query(30, description="Number of days"),
+):
+    """Get daily summary statistics."""
+    now = time.time()
+    start_ts = now - (days * 86400)
+    data = db.get_daily_summary(start_ts, now)
+    return {"data": data, "days": days}
+
+
+@app.get("/api/info", dependencies=[Depends(verify_auth)])
+async def api_info():
+    """Get database info and configuration."""
+    db_info = db.get_db_info()
+    return {
+        "target": config["target"],
+        "interval": config["interval"],
+        "timeout": config["timeout"],
+        "retention_days": config["retention_days"],
+        "database": db_info,
+    }
+
+
+# ─── Run ───────────────────────────────────────────────────────────────
+
+def main():
+    """Run the web server."""
+    import uvicorn
+
+    host = config["web"]["host"]
+    port = config["web"]["port"]
+
+    print(f"Starting Internet Monitor Dashboard on http://{host}:{port}")
+    uvicorn.run(app, host=host, port=port, log_level="info")
+
+
+if __name__ == "__main__":
+    main()

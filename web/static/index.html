@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Internet Monitor — Dashboard</title>
+    <meta name="description" content="Real-time internet quality monitoring dashboard with latency tracking and uptime statistics.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header id="header">
+        <div class="header-left">
+            <div class="logo">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                </svg>
+                <h1>Internet Monitor</h1>
+            </div>
+            <span class="header-target" id="header-target">—</span>
+        </div>
+        <div class="header-right">
+            <div class="live-indicator" id="live-indicator">
+                <span class="live-dot"></span>
+                LIVE
+            </div>
+            <span class="last-update" id="last-update">—</span>
+        </div>
+    </header>
+
+    <main>
+        <!-- Status Banner -->
+        <section id="status-banner" class="status-banner status-unknown">
+            <div class="status-content">
+                <div class="status-icon" id="status-icon">
+                    <svg id="status-icon-up" class="hidden" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                    <svg id="status-icon-down" class="hidden" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    <svg id="status-icon-unknown" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                </div>
+                <div class="status-text">
+                    <span class="status-label" id="status-label">Checking...</span>
+                    <span class="status-latency" id="status-latency">—</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Key Metrics -->
+        <section class="metrics-grid" id="metrics-grid">
+            <div class="metric-card" id="metric-avg">
+                <div class="metric-label">Avg Latency</div>
+                <div class="metric-value" id="val-avg">—</div>
+                <div class="metric-unit">ms</div>
+            </div>
+            <div class="metric-card" id="metric-p95">
+                <div class="metric-label">P95 Latency</div>
+                <div class="metric-value" id="val-p95">—</div>
+                <div class="metric-unit">ms</div>
+            </div>
+            <div class="metric-card" id="metric-p99">
+                <div class="metric-label">P99 Latency</div>
+                <div class="metric-value" id="val-p99">—</div>
+                <div class="metric-unit">ms</div>
+            </div>
+            <div class="metric-card" id="metric-uptime">
+                <div class="metric-label">Uptime</div>
+                <div class="metric-value" id="val-uptime">—</div>
+                <div class="metric-unit">%</div>
+            </div>
+            <div class="metric-card" id="metric-timeouts">
+                <div class="metric-label">Timeouts</div>
+                <div class="metric-value" id="val-timeouts">—</div>
+                <div class="metric-unit">total</div>
+            </div>
+            <div class="metric-card" id="metric-total">
+                <div class="metric-label">Total Pings</div>
+                <div class="metric-value" id="val-total">—</div>
+                <div class="metric-unit">recorded</div>
+            </div>
+        </section>
+
+        <!-- Live Chart -->
+        <section class="chart-section" id="section-live">
+            <div class="section-header">
+                <h2>Live Latency</h2>
+                <span class="section-subtitle">Last 5 minutes, auto-refreshing</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-live"></canvas>
+            </div>
+        </section>
+
+        <!-- Historical Chart -->
+        <section class="chart-section" id="section-historical">
+            <div class="section-header">
+                <h2>Historical Latency</h2>
+                <div class="range-picker" id="range-picker">
+                    <button class="range-btn" data-range="1h">1H</button>
+                    <button class="range-btn active" data-range="6h">6H</button>
+                    <button class="range-btn" data-range="24h">24H</button>
+                    <button class="range-btn" data-range="7d">7D</button>
+                    <button class="range-btn" data-range="30d">30D</button>
+                </div>
+            </div>
+            <div class="chart-container chart-container-lg">
+                <canvas id="chart-historical"></canvas>
+            </div>
+        </section>
+
+        <!-- Timeout Events -->
+        <section class="chart-section" id="section-timeouts">
+            <div class="section-header">
+                <h2>Timeout Events</h2>
+                <span class="section-subtitle">Packet loss over time</span>
+            </div>
+            <div class="chart-container">
+                <canvas id="chart-timeouts"></canvas>
+            </div>
+        </section>
+
+        <!-- Heatmap -->
+        <section class="chart-section" id="section-heatmap">
+            <div class="section-header">
+                <h2>Hourly Heatmap</h2>
+                <div class="range-picker" id="heatmap-range">
+                    <button class="range-btn active" data-days="7">7 Days</button>
+                    <button class="range-btn" data-days="14">14 Days</button>
+                    <button class="range-btn" data-days="30">30 Days</button>
+                </div>
+            </div>
+            <div class="heatmap-container" id="heatmap-container">
+                <div class="heatmap-loading">Loading heatmap data...</div>
+            </div>
+        </section>
+
+        <!-- Daily Summary Table -->
+        <section class="chart-section" id="section-daily">
+            <div class="section-header">
+                <h2>Daily Summary</h2>
+                <span class="section-subtitle">Last 30 days</span>
+            </div>
+            <div class="table-container">
+                <table id="daily-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Avg Latency</th>
+                            <th>Min</th>
+                            <th>Max</th>
+                            <th>Timeouts</th>
+                            <th>Total Pings</th>
+                            <th>Uptime</th>
+                        </tr>
+                    </thead>
+                    <tbody id="daily-table-body">
+                        <tr><td colspan="7" class="table-loading">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- DB Info -->
+        <section class="info-section" id="section-info">
+            <div class="info-card">
+                <span class="info-label">Database Size</span>
+                <span class="info-value" id="info-db-size">—</span>
+            </div>
+            <div class="info-card">
+                <span class="info-label">Total Records</span>
+                <span class="info-value" id="info-records">—</span>
+            </div>
+            <div class="info-card">
+                <span class="info-label">Monitoring Since</span>
+                <span class="info-value" id="info-since">—</span>
+            </div>
+            <div class="info-card">
+                <span class="info-label">Ping Interval</span>
+                <span class="info-value" id="info-interval">—</span>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>Internet Monitor &mdash; Proving ISP quality, one ping at a time.</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
