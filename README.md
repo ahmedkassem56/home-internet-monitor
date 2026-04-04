@@ -70,6 +70,17 @@ sudo journalctl -u ping-monitor -f
 sudo journalctl -u ping-monitor-web -f
 ```
 
+## Updating
+
+If you pull new code or make changes locally and want to apply them to the VPS:
+1. Transfer the updated files to your VPS.
+2. Inside the folder, simply run the update script as root:
+   ```bash
+   chmod +x update.sh
+   sudo ./update.sh
+   ```
+This will automatically stop the services, hot-swap the code, preserve your `config.yaml` and SQLite database, update dependencies, and restart everything cleanly.
+
 ## Uninstall
 
 If you wish to remove the monitoring suite from your server:

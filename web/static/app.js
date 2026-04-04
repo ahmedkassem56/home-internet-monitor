@@ -473,13 +473,13 @@ function getHeatmapColor(avgLatency, timeoutPct) {
     if (timeoutPct >= 10) return '#ef4444';       // Bad
     if (timeoutPct >= 5) return '#f59e0b';        // Warning
 
-    // Latency-based coloring
-    if (avgLatency <= 5) return '#059669';         // Excellent
-    if (avgLatency <= 15) return '#10b981';        // Great
-    if (avgLatency <= 30) return '#34d399';        // Good
-    if (avgLatency <= 60) return '#fbbf24';        // Moderate
-    if (avgLatency <= 100) return '#f59e0b';       // High
-    if (avgLatency <= 200) return '#ef4444';       // Very high
+    // Latency-based coloring (designed for a ~55ms baseline)
+    if (avgLatency <= 65) return '#059669';        // Excellent
+    if (avgLatency <= 85) return '#10b981';        // Great
+    if (avgLatency <= 110) return '#34d399';       // Good
+    if (avgLatency <= 150) return '#fbbf24';       // Moderate
+    if (avgLatency <= 200) return '#f59e0b';       // High
+    if (avgLatency <= 300) return '#ef4444';       // Very high
     return '#dc2626';                              // Extreme
 }
 
