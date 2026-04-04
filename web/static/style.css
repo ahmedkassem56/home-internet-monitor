@@ -437,26 +437,25 @@ main {
     box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
 }
 
-.heatmap-cell[data-tooltip]::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: calc(100% + 8px);
-    left: 50%;
-    transform: translateX(-50%);
+#global-tooltip {
+    position: fixed;
     background: var(--bg-secondary);
     color: var(--text-primary);
-    padding: 6px 10px;
+    padding: 6px 12px;
     border-radius: 6px;
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     white-space: nowrap;
-    opacity: 0;
     pointer-events: none;
-    transition: opacity var(--transition-fast);
     border: 1px solid var(--border-color);
-    z-index: 10;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+    transform: translate(-50%, -100%);
+    margin-top: -12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 
-.heatmap-cell:hover::after {
+#global-tooltip.visible {
     opacity: 1;
 }
 

@@ -484,7 +484,8 @@ function getHeatmapColor(avgLatency, timeoutPct) {
 }
 
 async function updateHeatmap() {
-    const data = await api(`/api/hourly?days=${heatmapDays}`);
+    const tzOffset = -new Date().getTimezoneOffset();
+    const data = await api(`/api/hourly?days=${heatmapDays}&tz=${tzOffset}`);
     if (!data || !data.data || data.data.length === 0) {
         document.getElementById('heatmap-container').innerHTML =
             '<div class="heatmap-loading">No heatmap data available yet. Waiting for data to accumulate...</div>';
@@ -563,7 +564,8 @@ async function updateHeatmap() {
 // ─── Daily Summary Table ──────────────────────────────────────────────
 
 async function updateDailyTable() {
-    const data = await api('/api/daily?days=30');
+    const tzOffset = -new Date().getTimezoneOffset();
+    const data = await api(`/api/daily?days=30&tz=${tzOffset}`);
     if (!data || !data.data) return;
 
     const tbody = document.getElementById('daily-table-body');
@@ -634,6 +636,29 @@ document.getElementById('heatmap-range').addEventListener('click', (e) => {
 // ─── Initialization ───────────────────────────────────────────────────
 
 async function init() {
+    // Tooltip setup
+    const globalTooltip = document.getElementById('global-tooltip');
+    
+    document.addEventListener('mouseover', (e) => {
+        if (e.target.classList.contains('heatmap-cell') && e.target.dataset.tooltip) {
+            globalTooltip.textContent = e.target.dataset.tooltip;
+            globalTooltip.classList.add('visible');
+        }
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (e.target.classList.contains('heatmap-cell')) {
+            globalTooltip.style.left = e.clientX + 'px';
+            globalTooltip.style.top = e.clientY + 'px';
+        }
+    });
+
+    document.addEventListener('mouseout', (e) => {
+        if (e.target.classList.contains('heatmap-cell')) {
+            globalTooltip.classList.remove('visible');
+        }
+    });
+
     // Initial load — all in parallel
     await Promise.all([
         updateStatus(),

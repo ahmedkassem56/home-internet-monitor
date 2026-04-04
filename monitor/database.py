@@ -127,19 +127,20 @@ class PingDatabase:
 
         return result
 
-    def get_hourly_summary(self, start_ts: float, end_ts: float) -> list[dict]:
-        """Get hourly bucketed summary for heatmap display.
+    def get_hourly_summary(self, start_ts: float, end_ts: float, tz_offset: int = 0) -> list[dict]:
+        """Get hourly bucketed summary for heatmap display with timezone offset.
 
         Returns hour_of_day (0-23), day_of_week (0=Mon, 6=Sun),
         date string, avg latency, and timeout count.
         """
         conn = self._get_conn()
+        offset_sec = tz_offset * 60
         rows = conn.execute(
             """
             SELECT
-                CAST(strftime('%H', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS hour_of_day,
-                CAST(strftime('%w', timestamp, 'unixepoch', 'localtime') AS INTEGER) AS day_of_week,
-                strftime('%Y-%m-%d', timestamp, 'unixepoch', 'localtime') AS date_str,
+                CAST(strftime('%H', timestamp + ?, 'unixepoch') AS INTEGER) AS hour_of_day,
+                CAST(strftime('%w', timestamp + ?, 'unixepoch') AS INTEGER) AS day_of_week,
+                strftime('%Y-%m-%d', timestamp + ?, 'unixepoch') AS date_str,
                 AVG(CASE WHEN is_timeout = 0 THEN latency_ms END) AS avg_latency,
                 MIN(CASE WHEN is_timeout = 0 THEN latency_ms END) AS min_latency,
                 MAX(CASE WHEN is_timeout = 0 THEN latency_ms END) AS max_latency,
@@ -150,17 +151,18 @@ class PingDatabase:
             GROUP BY date_str, hour_of_day
             ORDER BY date_str, hour_of_day
             """,
-            (start_ts, end_ts),
+            (offset_sec, offset_sec, offset_sec, start_ts, end_ts),
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_daily_summary(self, start_ts: float, end_ts: float) -> list[dict]:
+    def get_daily_summary(self, start_ts: float, end_ts: float, tz_offset: int = 0) -> list[dict]:
         """Get daily summary stats."""
         conn = self._get_conn()
+        offset_sec = tz_offset * 60
         rows = conn.execute(
             """
             SELECT
-                strftime('%Y-%m-%d', timestamp, 'unixepoch', 'localtime') AS date_str,
+                strftime('%Y-%m-%d', timestamp + ?, 'unixepoch') AS date_str,
                 COUNT(*) AS total_pings,
                 SUM(is_timeout) AS total_timeouts,
                 AVG(CASE WHEN is_timeout = 0 THEN latency_ms END) AS avg_latency,
@@ -171,7 +173,7 @@ class PingDatabase:
             GROUP BY date_str
             ORDER BY date_str DESC
             """,
-            (start_ts, end_ts),
+            (offset_sec, start_ts, end_ts),
         ).fetchall()
 
         results = []

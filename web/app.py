@@ -165,22 +165,24 @@ async def api_pings(
 @app.get("/api/hourly", dependencies=[Depends(verify_auth)])
 async def api_hourly(
     days: int = Query(7, description="Number of days of hourly data"),
+    tz: int = Query(0, description="Timezone offset in minutes"),
 ):
     """Get hourly breakdown for heatmap visualization."""
     now = time.time()
     start_ts = now - (days * 86400)
-    data = db.get_hourly_summary(start_ts, now)
+    data = db.get_hourly_summary(start_ts, now, tz)
     return {"data": data, "days": days}
 
 
 @app.get("/api/daily", dependencies=[Depends(verify_auth)])
 async def api_daily(
     days: int = Query(30, description="Number of days"),
+    tz: int = Query(0, description="Timezone offset in minutes"),
 ):
     """Get daily summary statistics."""
     now = time.time()
     start_ts = now - (days * 86400)
-    data = db.get_daily_summary(start_ts, now)
+    data = db.get_daily_summary(start_ts, now, tz)
     return {"data": data, "days": days}
 
 
