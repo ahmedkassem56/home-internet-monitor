@@ -335,6 +335,17 @@ async function updateHistoricalChart() {
                 },
                 interaction: { intersect: false, mode: 'index' },
                 plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true, speed: 0.05 },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                        }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(17, 24, 39, 0.95)',
                         borderColor: 'rgba(255,255,255,0.1)',
@@ -440,6 +451,17 @@ async function updateTimeoutsChart() {
                     }
                 },
                 plugins: {
+                    zoom: {
+                        zoom: {
+                            wheel: { enabled: true, speed: 0.05 },
+                            pinch: { enabled: true },
+                            mode: 'x',
+                        },
+                        pan: {
+                            enabled: true,
+                            mode: 'x',
+                        }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(17, 24, 39, 0.95)',
                         borderColor: 'rgba(255,255,255,0.1)',
