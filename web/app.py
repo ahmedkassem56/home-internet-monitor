@@ -55,6 +55,14 @@ async def serve_dashboard():
     return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
+@app.get("/api/settings", dependencies=[Depends(verify_auth)])
+async def api_settings():
+    """Return backend configuration settings to the frontend UI."""
+    return {
+        "mode": config.get("mode", "icmp")
+    }
+
+
 # Mount static files with auth not enforced (CSS/JS are non-sensitive)
 # but the HTML page itself requires auth via the route above.
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
@@ -202,6 +210,9 @@ async def api_incidents(
     good_streak = 0
     REQUIRED_GOOD_MINUTES = 3
     
+    mode = config.get("mode", "icmp")
+    lat_threshold = 250 if mode == "http" else 150
+    
     for b in buckets:
         ts = b["bucket_ts"]
         tc = b["timeout_count"] or 0
@@ -209,7 +220,7 @@ async def api_incidents(
         timeout_pct = tc / total
         avg_lat = b["avg_latency"] if b["avg_latency"] is not None else 0
         
-        is_bad = timeout_pct >= 0.5 or avg_lat >= 150
+        is_bad = timeout_pct >= 0.5 or avg_lat >= lat_threshold
         
         if current is None:
             if is_bad:

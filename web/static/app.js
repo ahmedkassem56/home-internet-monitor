@@ -26,6 +26,7 @@ let timeoutsChart = null;
 let currentRange = '6h';
 let heatmapDays = 7;
 let incidentsDays = 7;
+let monitorMode = 'icmp';
 
 // ─── API Helpers ──────────────────────────────────────────────────────
 
@@ -475,12 +476,20 @@ async function updateTimeoutsChart() {
 
 function getLatencyColor(avgLatency) {
     if (avgLatency == null) return '#1e293b';      // No data
-    if (avgLatency <= 65) return '#059669';        // Excellent
-    if (avgLatency <= 85) return '#10b981';        // Great
-    if (avgLatency <= 110) return '#34d399';       // Good
-    if (avgLatency <= 150) return '#fbbf24';       // Moderate
-    if (avgLatency <= 200) return '#f59e0b';       // High
-    if (avgLatency <= 300) return '#ef4444';       // Very high
+    
+    let excellent = monitorMode === 'http' ? 140 : 65;
+    let great = monitorMode === 'http' ? 160 : 85;
+    let good = monitorMode === 'http' ? 200 : 110;
+    let moderate = monitorMode === 'http' ? 250 : 150;
+    let high = monitorMode === 'http' ? 350 : 200;
+    let veryHigh = monitorMode === 'http' ? 500 : 300;
+
+    if (avgLatency <= excellent) return '#059669'; // Excellent
+    if (avgLatency <= great) return '#10b981';     // Great
+    if (avgLatency <= good) return '#34d399';      // Good
+    if (avgLatency <= moderate) return '#fbbf24';  // Moderate
+    if (avgLatency <= high) return '#f59e0b';      // High
+    if (avgLatency <= veryHigh) return '#ef4444';  // Very high
     return '#dc2626';                              // Extreme
 }
 
@@ -731,6 +740,16 @@ document.getElementById('incidents-range').addEventListener('click', (e) => {
 // ─── Initialization ───────────────────────────────────────────────────
 
 async function init() {
+    // Fetch Configuration Settings
+    try {
+        const settings = await api('/api/settings');
+        if (settings && settings.mode) {
+            monitorMode = settings.mode;
+        }
+    } catch(e) {
+        console.error("Failed to load settings:", e);
+    }
+
     // Tooltip setup
     const globalTooltip = document.getElementById('global-tooltip');
 
