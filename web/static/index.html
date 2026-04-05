@@ -141,18 +141,29 @@
             </div>
         </section>
 
-        <!-- Heatmap -->
-        <section class="chart-section" id="section-heatmap">
+        <!-- Heatmaps -->
+        <section class="chart-section" id="section-heatmaps">
             <div class="section-header">
-                <h2>Hourly Heatmap</h2>
+                <h2>Hourly Heatmaps</h2>
                 <div class="range-picker" id="heatmap-range">
                     <button class="range-btn active" data-days="7">7 Days</button>
                     <button class="range-btn" data-days="14">14 Days</button>
                     <button class="range-btn" data-days="30">30 Days</button>
                 </div>
             </div>
-            <div class="heatmap-container" id="heatmap-container">
-                <div class="heatmap-loading">Loading heatmap data...</div>
+            
+            <div class="heatmap-wrapper">
+                <h3 class="heatmap-title" style="margin-bottom: 15px; font-size: 0.95rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Average Latency</h3>
+                <div class="heatmap-container" id="latency-heatmap-container">
+                    <div class="heatmap-loading">Loading latency data...</div>
+                </div>
+            </div>
+
+            <div class="heatmap-wrapper" style="margin-top: 35px;">
+                <h3 class="heatmap-title" style="margin-bottom: 15px; font-size: 0.95rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Packet Loss (Timeouts)</h3>
+                <div class="heatmap-container" id="loss-heatmap-container">
+                    <div class="heatmap-loading">Loading packet loss data...</div>
+                </div>
             </div>
         </section>
 

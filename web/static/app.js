@@ -473,15 +473,8 @@ async function updateTimeoutsChart() {
 
 // ─── Heatmap ──────────────────────────────────────────────────────────
 
-function getHeatmapColor(avgLatency, timeoutPct) {
-    if (avgLatency == null && timeoutPct >= 50) return '#dc2626'; // Heavy outage
-    if (avgLatency == null) return '#1e293b';                      // No data
-
-    if (timeoutPct >= 30) return '#dc2626';      // Severe
-    if (timeoutPct >= 10) return '#ef4444';       // Bad
-    if (timeoutPct >= 5) return '#f59e0b';        // Warning
-
-    // Latency-based coloring (designed for a ~55ms baseline)
+function getLatencyColor(avgLatency) {
+    if (avgLatency == null) return '#1e293b';      // No data
     if (avgLatency <= 65) return '#059669';        // Excellent
     if (avgLatency <= 85) return '#10b981';        // Great
     if (avgLatency <= 110) return '#34d399';       // Good
@@ -491,12 +484,23 @@ function getHeatmapColor(avgLatency, timeoutPct) {
     return '#dc2626';                              // Extreme
 }
 
+function getLossColor(timeoutPct, hasData) {
+    if (!hasData) return '#1e293b';                // No data
+    if (timeoutPct <= 2) return '#059669';        // Excellent
+    if (timeoutPct > 2 && timeoutPct <= 5) return '#fbbf24';          // Warning
+    if (timeoutPct > 5 && timeoutPct <= 20) return '#f59e0b';          // High
+    if (timeoutPct > 20 && timeoutPct <= 50) return '#ef4444';         // Bad
+    return '#dc2626';                              // Extreme
+}
+
 async function updateHeatmap() {
     const tzOffset = -new Date().getTimezoneOffset();
     const data = await api(`/api/hourly?days=${heatmapDays}&tz=${tzOffset}`);
+
     if (!data || !data.data || data.data.length === 0) {
-        document.getElementById('heatmap-container').innerHTML =
-            '<div class="heatmap-loading">No heatmap data available yet. Waiting for data to accumulate...</div>';
+        const loadingMsg = '<div class="heatmap-loading">No heatmap data available yet. Waiting for data to accumulate...</div>';
+        document.getElementById('latency-heatmap-container').innerHTML = loadingMsg;
+        document.getElementById('loss-heatmap-container').innerHTML = loadingMsg;
         return;
     }
 
@@ -512,43 +516,61 @@ async function updateHeatmap() {
     const dates = Object.keys(dateMap).sort();
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-    let html = '';
+    // Define function to render a single heatmap grid
+    const renderGrid = (type) => {
+        let html = '';
 
-    // Hour labels row
-    html += '<div class="heatmap-hour-labels">';
-    for (let h = 0; h < 24; h++) {
-        html += `<div class="heatmap-hour-label">${h.toString().padStart(2, '0')}</div>`;
-    }
-    html += '</div>';
-
-    // Data rows
-    html += '<div class="heatmap-grid">';
-    dates.forEach(date => {
-        const d = new Date(date + 'T12:00:00');
-        const dayName = dayNames[d.getDay()];
-        const label = `${dayName} ${date.substring(5)}`;
-
-        html += '<div class="heatmap-row">';
-        html += `<div class="heatmap-label">${label}</div>`;
-
+        // Hour labels row
+        html += '<div class="heatmap-hour-labels">';
         for (let h = 0; h < 24; h++) {
-            const cell = dateMap[date][h];
-            if (cell) {
-                const timeoutPct = cell.total_count > 0 ? (cell.timeout_count / cell.total_count * 100) : 0;
-                const color = getHeatmapColor(cell.avg_latency, timeoutPct);
-                const avgStr = cell.avg_latency != null ? cell.avg_latency.toFixed(1) + 'ms' : 'N/A';
-                const tooltip = `${date} ${h.toString().padStart(2, '0')}:00 | Avg: ${avgStr} | Timeouts: ${cell.timeout_count} (${timeoutPct.toFixed(1)}%)`;
-                html += `<div class="heatmap-cell" style="background:${color}" data-tooltip="${tooltip}"></div>`;
-            } else {
-                html += `<div class="heatmap-cell" style="background:#1e293b" data-tooltip="${date} ${h.toString().padStart(2, '0')}:00 | No data"></div>`;
-            }
+            html += `<div class="heatmap-hour-label">${h.toString().padStart(2, '0')}</div>`;
         }
         html += '</div>';
-    });
-    html += '</div>';
 
-    // Legend
-    html += `
+        // Data rows
+        html += '<div class="heatmap-grid">';
+        dates.forEach(date => {
+            const d = new Date(date + 'T12:00:00');
+            const dayName = dayNames[d.getDay()];
+            const label = `${dayName} ${date.substring(5)}`;
+
+            html += '<div class="heatmap-row">';
+            html += `<div class="heatmap-label">${label}</div>`;
+
+            for (let h = 0; h < 24; h++) {
+                const cell = dateMap[date][h];
+                if (cell) {
+                    const timeoutPct = cell.total_count > 0 ? (cell.timeout_count / cell.total_count * 100) : 0;
+
+                    let color = '';
+                    let tooltip = '';
+
+                    if (type === 'latency') {
+                        color = getLatencyColor(cell.avg_latency);
+                        const avgStr = cell.avg_latency != null ? cell.avg_latency.toFixed(1) + 'ms' : 'N/A';
+                        tooltip = `${date} ${h.toString().padStart(2, '0')}:00 | Avg Latency: ${avgStr}`;
+                    } else {
+                        color = getLossColor(timeoutPct, true);
+                        tooltip = `${date} ${h.toString().padStart(2, '0')}:00 | Loss: ${timeoutPct.toFixed(2)}% (${cell.timeout_count} timeouts)`;
+                    }
+
+                    html += `<div class="heatmap-cell" style="background:${color}" data-tooltip="${tooltip}"></div>`;
+                } else {
+                    html += `<div class="heatmap-cell" style="background:#1e293b" data-tooltip="${date} ${h.toString().padStart(2, '0')}:00 | No data"></div>`;
+                }
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        return html;
+    };
+
+    // Render both grids
+    let latencyHtml = renderGrid('latency');
+    let lossHtml = renderGrid('loss');
+
+    // Add unique legends
+    latencyHtml += `
         <div class="heatmap-legend">
             <span class="heatmap-legend-label">Excellent</span>
             <div class="heatmap-legend-block" style="background:#059669"></div>
@@ -566,7 +588,26 @@ async function updateHeatmap() {
         </div>
     `;
 
-    document.getElementById('heatmap-container').innerHTML = html;
+    lossHtml += `
+        <div class="heatmap-legend">
+            <span class="heatmap-legend-label"><=2%</span>
+            <div class="heatmap-legend-block" style="background:#059669"></div>
+            <span class="heatmap-legend-label">>2%</span>
+            <div class="heatmap-legend-block" style="background:#fbbf24"></div>
+            <span class="heatmap-legend-label">>5%</span>
+            <div class="heatmap-legend-block" style="background:#f59e0b"></div>
+            <span class="heatmap-legend-label">>20%</span>
+            <div class="heatmap-legend-block" style="background:#ef4444"></div>
+            <span class="heatmap-legend-label">>50%</span>
+            <div class="heatmap-legend-block" style="background:#dc2626"></div>
+            <span class="heatmap-legend-label">Extreme</span>
+            <div class="heatmap-legend-block" style="background:#1e293b"></div>
+            <span class="heatmap-legend-label">No Data</span>
+        </div>
+    `;
+
+    document.getElementById('latency-heatmap-container').innerHTML = latencyHtml;
+    document.getElementById('loss-heatmap-container').innerHTML = lossHtml;
 }
 
 // ─── Daily Summary Table ──────────────────────────────────────────────
@@ -615,9 +656,9 @@ async function updateIncidentsTable() {
 
     tbody.innerHTML = incidents.map(i => {
         const badgeClass = i.type === 'Outage' ? 'badge-outage' : 'badge-latency';
-        const typeHtml = `<span class="type-badge ${badgeClass}">${i.type}</span>` + 
-                         (i.ongoing ? ' <span class="type-badge badge-ongoing">Ongoing</span>' : '');
-                         
+        const typeHtml = `<span class="type-badge ${badgeClass}">${i.type}</span>` +
+            (i.ongoing ? ' <span class="type-badge badge-ongoing">Ongoing</span>' : '');
+
         let severityText = '';
         if (i.type === 'Outage') {
             severityText = `Loss: <strong>${i.max_loss.toFixed(1)}%</strong>`;
@@ -692,7 +733,7 @@ document.getElementById('incidents-range').addEventListener('click', (e) => {
 async function init() {
     // Tooltip setup
     const globalTooltip = document.getElementById('global-tooltip');
-    
+
     document.addEventListener('mouseover', (e) => {
         if (e.target.classList.contains('heatmap-cell') && e.target.dataset.tooltip) {
             globalTooltip.textContent = e.target.dataset.tooltip;
