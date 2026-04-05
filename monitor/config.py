@@ -5,6 +5,7 @@ import yaml
 
 
 DEFAULT_CONFIG = {
+    "mode": "icmp",
     "target": "10.200.0.2",
     "interval": 1,
     "timeout": 3,
@@ -44,6 +45,7 @@ def load_config(path: str = None) -> dict:
 
     # Environment variable overrides
     env_map = {
+        "MONITOR_MODE": ("mode", str),
         "MONITOR_TARGET": ("target", str),
         "MONITOR_INTERVAL": ("interval", int),
         "MONITOR_TIMEOUT": ("timeout", int),

@@ -32,9 +32,10 @@ This tool is specifically built to track down and prove ISP dropouts and latency
    sudo nano /opt/internet-monitor/config.yaml
    ```
    **Important Settings to change:**
-   - `target`: The IP address of the device you want to ping (e.g., your router's WireGuard IP `10.200.0.2`).
+   - `target`: The IP address of the device you want to ping (e.g., your router's WireGuard IP `10.200.0.2`), or a web URL if using `http` mode.
+   - `mode`: Set to `"icmp"` to do standard operating system pings, or `"http"` to monitor web-server response times (TTFB).
    - `auth.username` and `auth.password`: Change the default credentials before exposing the dashboard to the internet.
-   - `interval`: The time in seconds between pings (Default is `1`). By setting it to 1, you can expect ~86,400 ping records per day.
+   - `interval`: The time in seconds between probes (Default is `1`). By setting it to 1, you can expect ~86,400 load records per day.
 4. **Restart the web service to apply auth changes:**
     ```bash
     sudo systemctl restart ping-monitor-web

@@ -1,7 +1,11 @@
 # Internet Monitor Configuration
 # ================================
 
-# Ping target (your router's WireGuard IP)
+# Ping mode
+# Use "icmp" for standard network ping, or "http" for measuring web server TTFB.
+mode: "icmp"
+
+# Ping target (IP address for icmp mode, or full URL for http mode)
 target: "10.200.0.2"
 
 # Ping interval in seconds (1 = every second, 5 = every 5 seconds)

@@ -11,6 +11,9 @@ import signal
 import logging
 import re
 import platform
+import urllib.request
+import urllib.error
+import socket
 
 from monitor.config import load_config
 from monitor.database import PingDatabase
@@ -47,12 +50,12 @@ def parse_ping_output(output: str) -> float | None:
     return None
 
 
-def do_ping(target: str, timeout: int, count: int) -> tuple[float | None, bool]:
-    """Execute a single ping and return (latency_ms, is_timeout).
+def do_ping(target: str, timeout: int, count: int) -> tuple[float | None, bool, int]:
+    """Execute a single ping and return (latency_ms, is_timeout, data_used_bytes).
 
     Returns:
-        (latency_ms, False) on success
-        (None, True) on timeout/failure
+        (latency_ms, False, bytes) on success
+        (None, True, bytes) on timeout/failure
     """
     # Build ping command based on OS
     is_linux = platform.system().lower() == "linux"
@@ -74,15 +77,39 @@ def do_ping(target: str, timeout: int, count: int) -> tuple[float | None, bool]:
 
         latency = parse_ping_output(result.stdout)
         if latency is not None:
-            return latency, False
+            return latency, False, 168 * count
         else:
-            return None, True
+            return None, True, 84 * count
 
     except subprocess.TimeoutExpired:
-        return None, True
+        return None, True, 84 * count
     except Exception as e:
         logger.error(f"Ping command failed: {e}")
-        return None, True
+        return None, True, 0
+
+
+def do_http_ping(target: str, timeout: int) -> tuple[float | None, bool, int]:
+    """Execute a single HTTP GET request and return (latency_ms, is_timeout, data_used_bytes)."""
+    if not target.startswith("http://") and not target.startswith("https://"):
+        target = "http://" + target
+
+    start_time = time.time()
+    try:
+        req = urllib.request.Request(target, headers={"User-Agent": "InternetMonitor/1.0"})
+        req_size = 400 + len(target)  # Approx TCP handshake + Request headers
+        with urllib.request.urlopen(req, timeout=timeout) as response:
+            # Read a tiny bit to measure time to first byte + transfer
+            response.read(1)
+            res_headers = sum(len(k) + len(v) + 4 for k, v in response.headers.items()) if hasattr(response, 'headers') else 300
+            res_size = res_headers + 50
+        latency_ms = (time.time() - start_time) * 1000.0
+        return latency_ms, False, req_size + res_size
+    except (urllib.error.URLError, socket.timeout):
+        req_size = 400 + len(target)
+        return None, True, req_size
+    except Exception as e:
+        logger.error(f"HTTP request failed: {e}")
+        return None, True, 0
 
 
 def run_cleanup(db: PingDatabase, retention_days: int):
@@ -103,12 +130,14 @@ def main():
     config = load_config(config_path)
 
     target = config["target"]
+    mode = config.get("mode", "icmp")
     interval = config["interval"]
     timeout = config["timeout"]
     count = config["count"]
     retention_days = config["retention_days"]
 
     logger.info(f"Starting Internet Monitor")
+    logger.info(f"  Mode: {mode}")
     logger.info(f"  Target: {target}")
     logger.info(f"  Interval: {interval}s")
     logger.info(f"  Timeout: {timeout}s")
@@ -121,14 +150,20 @@ def main():
     # Cleanup counter — run cleanup every 3600 pings (~1 hour at 1s interval)
     cleanup_interval = max(3600 // interval, 60)
     ping_count = 0
+    bytes_used = 0
 
     logger.info("Monitoring started. Press Ctrl+C to stop.")
 
     while not _shutdown:
         start_time = time.time()
 
-        # Execute ping
-        latency, is_timeout = do_ping(target, timeout, count)
+        # Execute probe
+        if mode == "http":
+            latency, is_timeout, b_used = do_http_ping(target, timeout)
+        else:
+            latency, is_timeout, b_used = do_ping(target, timeout, count)
+            
+        bytes_used += b_used
 
         # Record result
         db.insert_ping(start_time, latency, is_timeout)
@@ -146,11 +181,19 @@ def main():
             timeouts = stats.get("total_timeouts", 0)
             avg = stats.get("avg_latency")
             avg_str = f"{avg:.1f}ms" if avg else "N/A"
+            
+            # Formulate data statistics
+            data_kb = bytes_used / 1024
+            daily_multi = 86400 / (60 * interval)  # Number of 60-ping blocks per day
+            daily_mb = (bytes_used * daily_multi) / (1024 * 1024)
+            
             logger.info(
                 f"Last 60 pings: avg={avg_str}, "
                 f"timeouts={timeouts}, "
-                f"total={ping_count}"
+                f"total={ping_count}, "
+                f"data={data_kb:.1f} KB (~{daily_mb:.1f} MB/day)"
             )
+            bytes_used = 0
 
         # Periodic cleanup
         if ping_count % cleanup_interval == 0:
