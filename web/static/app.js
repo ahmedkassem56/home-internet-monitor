@@ -795,18 +795,16 @@ async function init() {
         }
     });
 
-    // Initial load — all in parallel
-    await Promise.all([
-        updateStatus(),
-        updateStats(),
-        updateLiveChart(),
-        updateHistoricalChart(),
-        updateTimeoutsChart(),
-        updateHeatmap(),
-        updateDailyTable(),
-        updateIncidentsTable(),
-        updateInfo(),
-    ]);
+    // Initial load — independent background rendering
+    updateStatus();
+    updateStats();
+    updateLiveChart();
+    updateHistoricalChart();
+    updateTimeoutsChart();
+    updateHeatmap();
+    updateDailyTable();
+    updateIncidentsTable();
+    updateInfo();
 
     // Set up refresh intervals
     setInterval(() => {

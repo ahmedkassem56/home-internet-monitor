@@ -1,0 +1,22 @@
+# Virtual Environment
+venv/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Database & Data
+data/
+pings.db
+
+# Deployment Scripts
+deploy.bat
+deploy.ps1
+deploy.sh
+
+# IDEs
+.vscode/
+.idea/

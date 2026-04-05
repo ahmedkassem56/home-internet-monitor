@@ -112,13 +112,13 @@ def auto_bucket_seconds(start_ts: float, end_ts: float) -> int:
 # ─── API Routes ────────────────────────────────────────────────────────
 
 @app.get("/api/status", dependencies=[Depends(verify_auth)])
-async def api_status():
+def api_status():
     """Current status and last 10 pings."""
     return db.get_status()
 
 
 @app.get("/api/stats", dependencies=[Depends(verify_auth)])
-async def api_stats(
+def api_stats(
     range: str = Query("24h", description="Time range: 1h, 6h, 24h, 7d, 30d"),
     start: float = Query(None, description="Custom start timestamp"),
     end: float = Query(None, description="Custom end timestamp"),
@@ -137,7 +137,7 @@ async def api_stats(
 
 
 @app.get("/api/pings", dependencies=[Depends(verify_auth)])
-async def api_pings(
+def api_pings(
     range: str = Query("1h", description="Time range: 1h, 6h, 24h, 7d, 30d"),
     start: float = Query(None, description="Custom start timestamp"),
     end: float = Query(None, description="Custom end timestamp"),
@@ -171,7 +171,7 @@ async def api_pings(
 
 
 @app.get("/api/hourly", dependencies=[Depends(verify_auth)])
-async def api_hourly(
+def api_hourly(
     days: int = Query(7, description="Number of days of hourly data"),
     tz: int = Query(0, description="Timezone offset in minutes"),
 ):
@@ -183,7 +183,7 @@ async def api_hourly(
 
 
 @app.get("/api/daily", dependencies=[Depends(verify_auth)])
-async def api_daily(
+def api_daily(
     days: int = Query(30, description="Number of days"),
     tz: int = Query(0, description="Timezone offset in minutes"),
 ):
@@ -195,7 +195,7 @@ async def api_daily(
 
 
 @app.get("/api/incidents", dependencies=[Depends(verify_auth)])
-async def api_incidents(
+def api_incidents(
     days: int = Query(7, description="Number of days to search for incidents")
 ):
     """Detect and list recent internet degradation incidents."""
