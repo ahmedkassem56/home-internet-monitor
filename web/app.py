@@ -1,5 +1,6 @@
 """FastAPI web server for Internet Monitor dashboard."""
 
+import hashlib
 import os
 import sys
 import time
@@ -7,7 +8,7 @@ import secrets
 
 from fastapi import FastAPI, Query, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 
 from monitor.config import load_config
@@ -26,6 +27,12 @@ AUTH_PASSWORD = config["auth"]["password"]
 
 # Create FastAPI app
 app = FastAPI(title="Internet Monitor", docs_url=None, redoc_url=None)
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    """Cleanly close database connections to prevent WAL lock issues on reload."""
+    db.close()
 
 # Security
 security = HTTPBasic()
@@ -48,11 +55,35 @@ def verify_auth(credentials: HTTPBasicCredentials = Depends(security)):
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
+# Generate a cache-busting version from the max modification time of static files
+def _compute_static_version() -> str:
+    """Hash the max mtime of all static files for automatic cache busting."""
+    mtimes = []
+    for root, _dirs, files in os.walk(STATIC_DIR):
+        for fname in files:
+            fpath = os.path.join(root, fname)
+            try:
+                mtimes.append(os.path.getmtime(fpath))
+            except OSError:
+                pass
+    max_mtime = str(max(mtimes)) if mtimes else str(time.time())
+    return hashlib.md5(max_mtime.encode()).hexdigest()[:8]
+
+STATIC_VERSION = _compute_static_version()
+
+# Pre-read and version-stamp the index.html template
+def _load_dashboard_html() -> str:
+    with open(os.path.join(STATIC_DIR, "index.html"), "r", encoding="utf-8") as f:
+        html = f.read()
+    return html.replace("?v=auto", f"?v={STATIC_VERSION}")
+
+_DASHBOARD_HTML = _load_dashboard_html()
+
 
 @app.get("/", dependencies=[Depends(verify_auth)])
 async def serve_dashboard():
-    """Serve the main dashboard page."""
-    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
+    """Serve the main dashboard page with auto cache-busted asset URLs."""
+    return HTMLResponse(content=_DASHBOARD_HTML, media_type="text/html")
 
 
 @app.get("/api/settings", dependencies=[Depends(verify_auth)])

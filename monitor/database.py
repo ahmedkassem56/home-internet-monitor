@@ -23,6 +23,8 @@ class PingDatabase:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._local = threading.local()
+        self._connections = []  # Track all connections for cleanup
+        self._lock = threading.Lock()
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -32,13 +34,18 @@ class PingDatabase:
         conn.executescript(self.SCHEMA)
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA synchronous=NORMAL")
+        conn.execute("PRAGMA busy_timeout=5000")
         conn.commit()
 
     def _get_conn(self) -> sqlite3.Connection:
         """Get a thread-local database connection."""
         if not hasattr(self._local, "conn") or self._local.conn is None:
-            self._local.conn = sqlite3.connect(self.db_path)
-            self._local.conn.row_factory = sqlite3.Row
+            conn = sqlite3.connect(self.db_path)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA busy_timeout=5000")
+            self._local.conn = conn
+            with self._lock:
+                self._connections.append(conn)
         return self._local.conn
 
     def insert_ping(self, timestamp: float, latency_ms: float | None, is_timeout: bool):
@@ -224,6 +231,17 @@ class PingDatabase:
         result = conn.execute("DELETE FROM pings WHERE timestamp < ?", (cutoff,))
         conn.commit()
         return result.rowcount
+
+    def close(self):
+        """Close all tracked database connections for clean shutdown."""
+        with self._lock:
+            for conn in self._connections:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+            self._connections.clear()
+        self._local = threading.local()
 
     def get_db_info(self) -> dict:
         """Get database size and row count info."""

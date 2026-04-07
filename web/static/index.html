@@ -10,12 +10,12 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js?v=3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
     <script
-        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js?v=3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js?v=3"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js?v=3"></script>
-    <link rel="stylesheet" href="/static/style.css?v=3">
+        src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+    <link rel="stylesheet" href="/static/style.css?v=auto">
 </head>
 
 <body>
@@ -185,14 +185,14 @@
             </div>
             
             <div class="heatmap-wrapper">
-                <h3 class="heatmap-title" style="margin-bottom: 15px; font-size: 0.95rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Average Latency</h3>
+                <h3 class="heatmap-title">Average Latency</h3>
                 <div class="heatmap-container" id="latency-heatmap-container">
                     <div class="heatmap-loading">Loading latency data...</div>
                 </div>
             </div>
 
-            <div class="heatmap-wrapper" style="margin-top: 35px;">
-                <h3 class="heatmap-title" style="margin-bottom: 15px; font-size: 0.95rem; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em;">Packet Loss (Timeouts)</h3>
+            <div class="heatmap-wrapper">
+                <h3 class="heatmap-title">Packet Loss (Timeouts)</h3>
                 <div class="heatmap-container" id="loss-heatmap-container">
                     <div class="heatmap-loading">Loading packet loss data...</div>
                 </div>
@@ -284,7 +284,7 @@
     <!-- Global Tooltip -->
     <div id="global-tooltip"></div>
 
-    <script src="/static/app.js?v=3"></script>
+    <script src="/static/app.js?v=auto"></script>
 </body>
 
 </html>

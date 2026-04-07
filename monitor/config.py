@@ -1,5 +1,6 @@
 """Configuration loader for Internet Monitor."""
 
+import copy
 import os
 import yaml
 
@@ -28,7 +29,7 @@ def load_config(path: str = None) -> dict:
 
     Priority: config file values > environment variables > defaults.
     """
-    config = DEFAULT_CONFIG.copy()
+    config = copy.deepcopy(DEFAULT_CONFIG)
 
     # Determine config path
     if path is None:

@@ -52,6 +52,13 @@
     --chart-grid: rgba(255, 255, 255, 0.03);
     --heatmap-empty: #1e293b;
     --tooltip-bg: rgba(17, 24, 39, 0.95);
+
+    /* Dark-mode defaults */
+    --range-picker-bg: rgba(0, 0, 0, 0.25);
+    --range-btn-hover-bg: rgba(255, 255, 255, 0.05);
+    --range-btn-active-color: #0a0e1a;
+    --table-row-border: rgba(255, 255, 255, 0.02);
+    --table-row-hover: rgba(255, 255, 255, 0.02);
 }
 
 :root[data-theme="light"] {
@@ -82,6 +89,13 @@
     --chart-grid: rgba(0, 0, 0, 0.06);
     --heatmap-empty: #f1f5f9;
     --tooltip-bg: rgba(255, 255, 255, 0.95);
+
+    /* Light-mode specific overrides */
+    --range-picker-bg: rgba(0, 0, 0, 0.06);
+    --range-btn-hover-bg: rgba(0, 0, 0, 0.06);
+    --range-btn-active-color: #ffffff;
+    --table-row-border: rgba(0, 0, 0, 0.05);
+    --table-row-hover: rgba(0, 0, 0, 0.03);
 }
 
 /* ─── Reset & Base ──────────────────────────────────────────────── */
@@ -445,7 +459,7 @@ main {
 .range-picker {
     display: flex;
     gap: 4px;
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--range-picker-bg);
     border-radius: var(--border-radius-sm);
     padding: 3px;
 }
@@ -465,16 +479,29 @@ main {
 
 .range-btn:hover {
     color: var(--text-primary);
-    background: rgba(255, 255, 255, 0.05);
+    background: var(--range-btn-hover-bg);
 }
 
 .range-btn.active {
-    color: var(--bg-primary);
+    color: var(--range-btn-active-color);
     background: var(--accent-primary);
     font-weight: 600;
 }
 
 /* ─── Heatmap ───────────────────────────────────────────────────── */
+.heatmap-title {
+    margin-bottom: 15px;
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.heatmap-wrapper + .heatmap-wrapper {
+    margin-top: 35px;
+}
+
 .heatmap-container {
     overflow-x: auto;
     padding-bottom: 8px;
@@ -607,14 +634,14 @@ thead th {
 }
 
 tbody td {
-    padding: 10px 14px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--table-row-border);
     color: var(--text-secondary);
     transition: background var(--transition-fast);
 }
 
 tbody tr:hover td {
-    background: rgba(255, 255, 255, 0.02);
+    background: var(--table-row-hover);
 }
 
 .table-loading {

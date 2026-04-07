@@ -35,7 +35,7 @@ function applyTheme(theme) {
         iconSun.classList.remove('hidden');
         iconMoon.classList.add('hidden');
     }
-    
+
     // Force charts to re-render to ingest new CSS variable values
     setTimeout(() => {
         updateChartColors();
@@ -45,7 +45,7 @@ function applyTheme(theme) {
 
 function getThemeColor(colorName) {
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    switch(colorName) {
+    switch (colorName) {
         case 'textPrimary': return isLight ? '#0f172a' : '#f1f5f9';
         case 'tooltipBg': return isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(17, 24, 39, 0.95)';
         case 'borderColor': return isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)';
@@ -201,11 +201,11 @@ async function updateSummary() {
     if (!rangeSelect) return;
     const range = rangeSelect.value;
     const summaryText = document.getElementById('summary-text');
-    
+
     summaryText.style.opacity = '0.5';
     const data = await api(`/api/summary?range=${range}`);
     summaryText.style.opacity = '1';
-    
+
     if (data && data.summary) {
         summaryText.textContent = data.summary;
     } else {
@@ -409,7 +409,7 @@ async function updateHistoricalChart() {
                 backgroundColor: 'rgba(239, 68, 68, 0.85)',
                 borderColor: '#ef4444',
                 borderWidth: 1.5,
-                pointRadius: 6,
+                pointRadius: 4,
                 pointHoverRadius: 9,
                 pointStyle: 'triangle',
             });
@@ -638,7 +638,7 @@ function getCssVar(name) {
 
 function getLatencyColor(avgLatency) {
     if (avgLatency == null) return getCssVar('--heatmap-empty');      // No data
-    
+
     let excellent = monitorMode === 'http' ? 140 : 65;
     let great = monitorMode === 'http' ? 160 : 85;
     let good = monitorMode === 'http' ? 200 : 110;
@@ -713,7 +713,7 @@ async function updateHeatmap() {
                 if (cell) {
                     const cellTotal = cell.total_count || 0;
                     const cellTimeouts = cell.timeout_count || 0;
-                    
+
                     const cellSuccess = cellTotal - cellTimeouts;
                     const upSecs = cellSuccess * pingInterval;
                     const downSecs = cellTimeouts * pingTimeout;
@@ -761,7 +761,7 @@ async function updateHeatmap() {
             <div class="heatmap-legend-block" style="background:#ef4444"></div>
             <div class="heatmap-legend-block" style="background:#dc2626"></div>
             <span class="heatmap-legend-label">Severe</span>
-            <div class="heatmap-legend-block" style="background:#1e293b"></div>
+            <div class="heatmap-legend-block" style="background:${getCssVar('--heatmap-empty')}"></div>
             <span class="heatmap-legend-label">No Data</span>
         </div>
     `;
@@ -779,7 +779,7 @@ async function updateHeatmap() {
             <span class="heatmap-legend-label">>50%</span>
             <div class="heatmap-legend-block" style="background:#dc2626"></div>
             <span class="heatmap-legend-label">Extreme</span>
-            <div class="heatmap-legend-block" style="background:#1e293b"></div>
+            <div class="heatmap-legend-block" style="background:${getCssVar('--heatmap-empty')}"></div>
             <span class="heatmap-legend-label">No Data</span>
         </div>
     `;
@@ -919,7 +919,7 @@ async function init() {
         if (settings && settings.mode) monitorMode = settings.mode;
         if (settings && settings.interval) pingInterval = settings.interval;
         if (settings && settings.timeout) pingTimeout = settings.timeout;
-    } catch(e) {
+    } catch (e) {
         console.error("Failed to load settings:", e);
     }
 
