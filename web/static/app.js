@@ -37,10 +37,55 @@ function applyTheme(theme) {
     }
     
     // Force charts to re-render to ingest new CSS variable values
-    if (liveChart) liveChart.update('none');
-    if (historicalChart) historicalChart.update('none');
-    if (timeoutsChart) timeoutsChart.update('none');
+    setTimeout(() => {
+        updateChartColors();
+    }, 15);
     updateHeatmap(); // Rebuild manually colored heatmap DOM blocks
+}
+
+function getThemeColor(colorName) {
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    switch(colorName) {
+        case 'textPrimary': return isLight ? '#0f172a' : '#f1f5f9';
+        case 'tooltipBg': return isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(17, 24, 39, 0.95)';
+        case 'borderColor': return isLight ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.06)';
+        case 'chartGrid': return isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.03)';
+        case 'textSecondary': return isLight ? '#475569' : '#94a3b8';
+    }
+    return '';
+}
+
+function updateChartColors() {
+    const tooltipBg = getThemeColor('tooltipBg');
+    const textPrimary = getThemeColor('textPrimary');
+    const borderColor = getThemeColor('borderColor');
+    const chartGrid = getThemeColor('chartGrid');
+    const textSecondary = getThemeColor('textSecondary');
+
+    Chart.defaults.color = textSecondary;
+    Chart.defaults.borderColor = borderColor;
+
+    const charts = [liveChart, historicalChart, timeoutsChart].filter(Boolean);
+    charts.forEach(chart => {
+        if (chart.options.plugins && chart.options.plugins.tooltip) {
+            chart.options.plugins.tooltip.backgroundColor = tooltipBg;
+            chart.options.plugins.tooltip.titleColor = textPrimary;
+            chart.options.plugins.tooltip.bodyColor = textPrimary;
+            chart.options.plugins.tooltip.borderColor = borderColor;
+        }
+
+        const updateAxis = (axisName) => {
+            if (chart.options.scales && chart.options.scales[axisName]) {
+                if (chart.options.scales[axisName].grid) chart.options.scales[axisName].grid.color = chartGrid;
+                if (!chart.options.scales[axisName].ticks) chart.options.scales[axisName].ticks = {};
+                chart.options.scales[axisName].ticks.color = textSecondary;
+            }
+        };
+        updateAxis('x');
+        updateAxis('y');
+
+        chart.update('none');
+    });
 }
 
 if (themeToggle) {
@@ -149,6 +194,25 @@ async function updateStatus() {
     document.getElementById('last-update').textContent = `Updated ${new Date().toLocaleTimeString()}`;
 }
 
+// ─── Summary ────────────────────────────────────────────────────────────
+
+async function updateSummary() {
+    const rangeSelect = document.getElementById('summary-range-select');
+    if (!rangeSelect) return;
+    const range = rangeSelect.value;
+    const summaryText = document.getElementById('summary-text');
+    
+    summaryText.style.opacity = '0.5';
+    const data = await api(`/api/summary?range=${range}`);
+    summaryText.style.opacity = '1';
+    
+    if (data && data.summary) {
+        summaryText.textContent = data.summary;
+    } else {
+        summaryText.textContent = 'Failed to load summary.';
+    }
+}
+
 // ─── Stats ────────────────────────────────────────────────────────────
 
 async function updateStats() {
@@ -245,16 +309,16 @@ async function updateLiveChart() {
                     y: {
                         beginAtZero: true,
                         title: { display: true, text: 'ms', font: { size: 10 } },
-                        grid: { color: 'var(--chart-grid)' },
+                        grid: { color: getThemeColor('chartGrid') },
                     }
                 },
                 interaction: { intersect: false, mode: 'index' },
                 plugins: {
                     tooltip: {
-                        backgroundColor: 'var(--tooltip-bg)',
-                        titleColor: 'var(--text-primary)',
-                        bodyColor: 'var(--text-primary)',
-                        borderColor: 'var(--border-color)',
+                        backgroundColor: getThemeColor('tooltipBg'),
+                        titleColor: getThemeColor('textPrimary'),
+                        bodyColor: getThemeColor('textPrimary'),
+                        borderColor: getThemeColor('borderColor'),
                         borderWidth: 1,
                         cornerRadius: 8,
                         padding: 10,
@@ -327,19 +391,27 @@ async function updateHistoricalChart() {
         });
     }
 
-    // Add timeout indicators
+    // Add timeout indicators — plot at max latency of the bucket (or avg if no max)
+    // so they sit visibly on top of the chart, not hidden at y=0
     if (isBucketed) {
         const timeoutData = pings
             .filter(p => p.timeout_count > 0)
-            .map(p => ({ x: new Date(p.bucket_ts * 1000), y: 0 }));
+            .map(p => ({
+                x: new Date(p.bucket_ts * 1000),
+                y: p.max_latency || p.avg_latency || 1,
+                _timeoutCount: p.timeout_count,
+            }));
         if (timeoutData.length > 0) {
             datasets.push({
                 label: 'Timeouts',
                 data: timeoutData,
                 type: 'scatter',
-                backgroundColor: '#ef4444',
-                pointRadius: 3,
-                pointStyle: 'crossRot',
+                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                borderColor: '#ef4444',
+                borderWidth: 1.5,
+                pointRadius: 6,
+                pointHoverRadius: 9,
+                pointStyle: 'triangle',
             });
         }
     }
@@ -365,7 +437,7 @@ async function updateHistoricalChart() {
                     y: {
                         beginAtZero: true,
                         title: { display: true, text: 'ms', font: { size: 10 } },
-                        grid: { color: 'var(--chart-grid)' },
+                        grid: { color: getThemeColor('chartGrid') },
                     }
                 },
                 interaction: { intersect: false, mode: 'index' },
@@ -382,10 +454,10 @@ async function updateHistoricalChart() {
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'var(--tooltip-bg)',
-                        titleColor: 'var(--text-primary)',
-                        bodyColor: 'var(--text-primary)',
-                        borderColor: 'var(--border-color)',
+                        backgroundColor: getThemeColor('tooltipBg'),
+                        titleColor: getThemeColor('textPrimary'),
+                        bodyColor: getThemeColor('textPrimary'),
+                        borderColor: getThemeColor('borderColor'),
                         borderWidth: 1,
                         cornerRadius: 8,
                         padding: 10,
@@ -403,8 +475,17 @@ async function updateHistoricalChart() {
         });
     } else {
         historicalChart.data.labels = labels;
-        historicalChart.data.datasets = datasets;
-        historicalChart.update();
+        // Prevent Chart.js from completely destructing and rebuilding its internal meta array 
+        // by modifying existing elements in-place to avoid huge UI stutters
+        if (historicalChart.data.datasets.length === datasets.length) {
+            for (let i = 0; i < datasets.length; i++) {
+                historicalChart.data.datasets[i].data = datasets[i].data;
+                historicalChart.data.datasets[i].label = datasets[i].label;
+            }
+        } else {
+            historicalChart.data.datasets = datasets;
+        }
+        historicalChart.update('none'); // Snaps UI instantly, disabling extreme bezier-tension mathematical calculation loads
     }
 }
 
@@ -459,8 +540,10 @@ async function updateTimeoutsChart() {
             data: {
                 labels: labels,
                 datasets: [{
-                    label: isBucketed ? 'Packet Loss %' : 'Timeouts',
-                    data: isBucketed ? lossPct : timeoutCounts,
+                    label: 'Timeouts',
+                    data: timeoutCounts,
+                    lossPctArray: lossPct,
+                    isBucketedData: isBucketed,
                     backgroundColor: timeoutCounts.map(c =>
                         c > 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(16, 185, 129, 0.15)'
                     ),
@@ -488,10 +571,14 @@ async function updateTimeoutsChart() {
                         beginAtZero: true,
                         title: {
                             display: true,
-                            text: isBucketed ? 'Loss %' : 'Count',
+                            text: 'Timeouts',
                             font: { size: 10 }
                         },
-                        grid: { color: 'rgba(255,255,255,0.03)' },
+                        grid: { color: getThemeColor('chartGrid') },
+                        ticks: {
+                            stepSize: 1,
+                            precision: 0,
+                        }
                     }
                 },
                 plugins: {
@@ -507,18 +594,21 @@ async function updateTimeoutsChart() {
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'var(--tooltip-bg)',
-                        borderColor: 'var(--border-color)',
+                        backgroundColor: getThemeColor('tooltipBg'),
+                        titleColor: getThemeColor('textPrimary'),
+                        bodyColor: getThemeColor('textPrimary'),
+                        borderColor: getThemeColor('borderColor'),
                         borderWidth: 1,
                         cornerRadius: 8,
                         callbacks: {
                             label: (ctx) => {
-                                const tc = timeoutCounts[ctx.dataIndex];
-                                if (isBucketed) {
-                                    const pct = lossPct[ctx.dataIndex];
-                                    return `${tc} timeouts (${pct.toFixed(1)}% loss)`;
+                                const ds = ctx.dataset;
+                                const tc = ctx.parsed.y;
+                                if (ds.isBucketedData && ds.lossPctArray) {
+                                    const pct = ds.lossPctArray[ctx.dataIndex];
+                                    return `${tc} timeout${tc !== 1 ? 's' : ''} (${pct.toFixed(1)}% loss)`;
                                 }
-                                return `${tc} timeouts`;
+                                return `${tc} timeout${tc !== 1 ? 's' : ''}`;
                             }
                         }
                     }
@@ -527,14 +617,16 @@ async function updateTimeoutsChart() {
         });
     } else {
         timeoutsChart.data.labels = labels;
-        timeoutsChart.data.datasets[0].data = isBucketed ? lossPct : timeoutCounts;
+        timeoutsChart.data.datasets[0].data = timeoutCounts;
+        timeoutsChart.data.datasets[0].lossPctArray = lossPct;
+        timeoutsChart.data.datasets[0].isBucketedData = isBucketed;
         timeoutsChart.data.datasets[0].backgroundColor = timeoutCounts.map(c =>
             c > 0 ? 'rgba(239, 68, 68, 0.7)' : 'rgba(16, 185, 129, 0.15)'
         );
         timeoutsChart.data.datasets[0].borderColor = timeoutCounts.map(c =>
             c > 0 ? '#ef4444' : 'rgba(16, 185, 129, 0.3)'
         );
-        timeoutsChart.update();
+        timeoutsChart.update('none');
     }
 }
 
@@ -831,6 +923,14 @@ async function init() {
         console.error("Failed to load settings:", e);
     }
 
+    // Dropdown for Summary
+    const summarySelect = document.getElementById('summary-range-select');
+    if (summarySelect) {
+        summarySelect.addEventListener('change', () => {
+            updateSummary();
+        });
+    }
+
     // Tooltip setup
     const globalTooltip = document.getElementById('global-tooltip');
 
@@ -854,16 +954,24 @@ async function init() {
         }
     });
 
-    // Initial load — independent background rendering
+    // Staggered initial load — prevent flooding the main thread on startup.
+    // Priority 1 (immediate): visible status + summary text — renders above the fold
     updateStatus();
+    updateSummary();
     updateStats();
-    updateLiveChart();
-    updateHistoricalChart();
-    updateTimeoutsChart();
-    updateHeatmap();
-    updateDailyTable();
-    updateIncidentsTable();
-    updateInfo();
+
+    // Priority 2 (short delay): live chart is small and fast
+    setTimeout(() => updateLiveChart(), 100);
+
+    // Priority 3 (after first paint settles): heavy historical charts
+    setTimeout(() => updateHistoricalChart(), 300);
+    setTimeout(() => updateTimeoutsChart(), 600);
+
+    // Priority 4 (background): heatmap, tables, incidents — user must scroll to see these
+    setTimeout(() => updateHeatmap(), 900);
+    setTimeout(() => updateDailyTable(), 1200);
+    setTimeout(() => updateIncidentsTable(), 1500);
+    setTimeout(() => updateInfo(), 1800);
 
     // Set up refresh intervals
     setInterval(() => {
@@ -871,10 +979,27 @@ async function init() {
         updateLiveChart();
     }, REFRESH_INTERVAL);
 
+    let lastDynamicRefresh = 0;
     setInterval(() => {
-        updateStats();
-        updateHistoricalChart();
-        updateTimeoutsChart();
+        const now = Date.now();
+        updateStats(); // 24h ranges are lightweight, always keep synced
+        updateSummary(); // Sync short text summary
+
+        // Throttle Chart JS UI refreshes based on range scale to eliminate massive unneeded calculation stutters
+        let shouldRefreshCharts = false;
+        if (currentRange === '1h' || currentRange === '6h') {
+            shouldRefreshCharts = true; // refresh every 15s
+        } else if (currentRange === '24h') {
+            if (now - lastDynamicRefresh >= 59000) shouldRefreshCharts = true; // refresh every 1 minute
+        } else {
+            if (now - lastDynamicRefresh >= 299000) shouldRefreshCharts = true; // refresh every 5 minutes
+        }
+
+        if (shouldRefreshCharts || lastDynamicRefresh === 0) {
+            updateHistoricalChart();
+            updateTimeoutsChart();
+            lastDynamicRefresh = now;
+        }
     }, STATS_REFRESH);
 
     setInterval(() => {

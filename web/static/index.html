@@ -86,6 +86,20 @@
             </div>
         </section>
 
+        <!-- Service Summary -->
+        <section id="service-summary" class="service-summary">
+            <div class="summary-header">
+                <h3>Service Summary</h3>
+                <select id="summary-range-select" class="summary-select">
+                    <option value="15m">Past 15m</option>
+                    <option value="30m" selected>Past 30m</option>
+                    <option value="1h">Past 1h</option>
+                    <option value="6h">Past 6h</option>
+                </select>
+            </div>
+            <p id="summary-text" class="summary-text">Analyzing connection data...</p>
+        </section>
+
         <!-- Key Metrics -->
         <section class="metrics-grid" id="metrics-grid">
             <div class="metric-card" id="metric-avg">

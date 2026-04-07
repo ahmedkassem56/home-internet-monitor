@@ -94,21 +94,21 @@ def parse_range(range_str: str) -> tuple[float, float]:
 def auto_bucket_seconds(start_ts: float, end_ts: float) -> int:
     """Automatically calculate bucket size for downsampling.
 
-    Target: ~500-1000 data points for smooth charts.
+    Target: ~250-500 data points for ultra smooth charts without UI stuttering.
     """
     duration = end_ts - start_ts
     if duration <= 300:        # <= 5 min: raw data (1s)
         return 0
-    elif duration <= 3600:     # <= 1 hour: 5s buckets
-        return 5
-    elif duration <= 21600:    # <= 6 hours: 30s buckets
-        return 30
-    elif duration <= 86400:    # <= 24 hours: 2-min buckets
-        return 120
-    elif duration <= 604800:   # <= 7 days: 15-min buckets
-        return 900
-    else:                      # > 7 days: 1-hour buckets
-        return 3600
+    elif duration <= 3600:     # <= 1 hour: 10s buckets
+        return 10
+    elif duration <= 21600:    # <= 6 hours: 60s (1m) buckets
+        return 60
+    elif duration <= 86400:    # <= 24 hours: 4-min buckets
+        return 240
+    elif duration <= 604800:   # <= 7 days: 30-min buckets
+        return 1800
+    else:                      # > 7 days: 2-hour buckets
+        return 7200
 
 
 # ─── API Routes ────────────────────────────────────────────────────────
@@ -138,6 +138,35 @@ def api_stats(
     stats["start_ts"] = start_ts
     stats["end_ts"] = end_ts
     return stats
+
+
+@app.get("/api/summary", dependencies=[Depends(verify_auth)])
+def api_summary(range: str = Query("30m", description="Time range: 15m, 30m, 1h")):
+    """Get a short text summary of performance."""
+    start_ts, end_ts = parse_range(range)
+    interval = config.get("interval", 1)
+    timeout = config.get("timeout", 5)
+    stats = db.get_stats(start_ts, end_ts, interval=interval, timeout=timeout)
+    
+    total = stats.get("total_pings", 0)
+    if total == 0:
+        return {"summary": "No data available for this period."}
+        
+    uptime = stats.get("uptime_pct", 100.0)
+    avg_lat = stats.get("avg_latency")
+    timeouts = stats.get("total_timeouts", 0)
+    
+    avg_str = f"{avg_lat:.1f}ms" if avg_lat is not None else "N/A"
+    
+    if timeouts > 0:
+        peak = stats.get("max_latency")
+        peak_str = f" • Peak {peak:.1f}ms" if peak is not None else ""
+        text = f"{uptime}% Uptime • Avg {avg_str}{peak_str} • {timeouts} Timeouts"
+    else:
+        text = f"100% Uptime • Avg {avg_str} • 0 Timeouts"
+        
+    return {"summary": text}
+
 
 
 @app.get("/api/pings", dependencies=[Depends(verify_auth)])

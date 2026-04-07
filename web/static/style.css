@@ -128,8 +128,8 @@ header {
     justify-content: space-between;
     padding: 14px 28px;
     background: var(--bg-card);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    /* Removed backdrop-filter blur — it forces GPU compositing on every frame during load,
+       causing FPS drops. The bg-card color provides sufficient visual distinction. */
     border-bottom: 1px solid var(--border-color);
 }
 
@@ -234,10 +234,8 @@ main {
 .status-banner {
     border-radius: var(--border-radius);
     padding: 24px 32px;
-    backdrop-filter: blur(12px);
     border: 1px solid var(--border-color);
     transition: all var(--transition-slow);
-    animation: fadeSlideIn 0.6s ease;
 }
 
 .status-banner.status-up {
@@ -250,7 +248,7 @@ main {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
     border-color: rgba(239, 68, 68, 0.25);
     box-shadow: 0 0 40px rgba(239, 68, 68, 0.1);
-    animation: fadeSlideIn 0.6s ease, pulse-danger 3s ease-in-out infinite;
+    animation: pulse-danger 3s ease-in-out infinite;
 }
 
 .status-banner.status-unknown {
@@ -293,6 +291,57 @@ main {
 .status-latency {
     font-size: 0.9rem;
     color: var(--text-secondary);
+}
+
+/* ─── Service Summary ───────────────────────────────────────────── */
+.service-summary {
+    background: var(--bg-glass);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.summary-header h3 {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.summary-select {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 500;
+    outline: none;
+    transition: var(--transition-fast);
+}
+
+.summary-select:focus, .summary-select:hover {
+    border-color: var(--accent-primary);
+    color: var(--text-primary);
+}
+
+.summary-text {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+    font-weight: 500;
 }
 
 /* ─── Metrics Grid ──────────────────────────────────────────────── */
@@ -358,11 +407,9 @@ main {
 /* ─── Chart Sections ────────────────────────────────────────────── */
 .chart-section {
     background: var(--bg-card);
-    backdrop-filter: blur(12px);
     border: 1px solid var(--border-color);
     border-radius: var(--border-radius);
     padding: 24px;
-    animation: fadeSlideIn 0.6s ease both;
 }
 
 .section-header {
@@ -441,15 +488,18 @@ main {
 }
 
 .heatmap-grid {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 3px;
     min-width: 700px;
+    width: 100%;
 }
 
 .heatmap-row {
     display: flex;
     align-items: center;
     gap: 3px;
+    width: 100%;
 }
 
 .heatmap-label {
@@ -466,17 +516,18 @@ main {
     gap: 3px;
     margin-left: 93px;
     margin-bottom: 6px;
+    width: calc(100% - 93px);
 }
 
 .heatmap-hour-label {
-    width: 28px;
+    flex: 1;
     font-size: 0.65rem;
     color: var(--text-muted);
     text-align: center;
 }
 
 .heatmap-cell {
-    width: 24px;
+    flex: 1;
     height: 24px;
     border-radius: 4px;
     transition: var(--transition-fast);
