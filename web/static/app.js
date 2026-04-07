@@ -19,6 +19,37 @@ Chart.defaults.animation.duration = 400;
 Chart.defaults.responsive = true;
 Chart.defaults.maintainAspectRatio = false;
 
+// ─── Theme Management ───────────────────────────────────────────────────
+
+const themeToggle = document.getElementById('theme-toggle');
+const iconSun = document.getElementById('icon-sun');
+const iconMoon = document.getElementById('icon-moon');
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+    if (theme === 'light') {
+        iconSun.classList.add('hidden');
+        iconMoon.classList.remove('hidden');
+    } else {
+        iconSun.classList.remove('hidden');
+        iconMoon.classList.add('hidden');
+    }
+    
+    // Force charts to re-render to ingest new CSS variable values
+    if (liveChart) liveChart.update('none');
+    if (historicalChart) historicalChart.update('none');
+    if (timeoutsChart) timeoutsChart.update('none');
+    updateHeatmap(); // Rebuild manually colored heatmap DOM blocks
+}
+
+if (themeToggle) {
+    themeToggle.addEventListener('click', () => {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        applyTheme(currentTheme === 'dark' ? 'light' : 'dark');
+    });
+}
+
 // ─── State ────────────────────────────────────────────────────────────
 let liveChart = null;
 let historicalChart = null;
@@ -214,14 +245,16 @@ async function updateLiveChart() {
                     y: {
                         beginAtZero: true,
                         title: { display: true, text: 'ms', font: { size: 10 } },
-                        grid: { color: 'rgba(255,255,255,0.03)' },
+                        grid: { color: 'var(--chart-grid)' },
                     }
                 },
                 interaction: { intersect: false, mode: 'index' },
                 plugins: {
                     tooltip: {
-                        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                        borderColor: 'rgba(255,255,255,0.1)',
+                        backgroundColor: 'var(--tooltip-bg)',
+                        titleColor: 'var(--text-primary)',
+                        bodyColor: 'var(--text-primary)',
+                        borderColor: 'var(--border-color)',
                         borderWidth: 1,
                         cornerRadius: 8,
                         padding: 10,
@@ -332,7 +365,7 @@ async function updateHistoricalChart() {
                     y: {
                         beginAtZero: true,
                         title: { display: true, text: 'ms', font: { size: 10 } },
-                        grid: { color: 'rgba(255,255,255,0.03)' },
+                        grid: { color: 'var(--chart-grid)' },
                     }
                 },
                 interaction: { intersect: false, mode: 'index' },
@@ -349,8 +382,10 @@ async function updateHistoricalChart() {
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                        borderColor: 'rgba(255,255,255,0.1)',
+                        backgroundColor: 'var(--tooltip-bg)',
+                        titleColor: 'var(--text-primary)',
+                        bodyColor: 'var(--text-primary)',
+                        borderColor: 'var(--border-color)',
                         borderWidth: 1,
                         cornerRadius: 8,
                         padding: 10,
@@ -472,8 +507,8 @@ async function updateTimeoutsChart() {
                         }
                     },
                     tooltip: {
-                        backgroundColor: 'rgba(17, 24, 39, 0.95)',
-                        borderColor: 'rgba(255,255,255,0.1)',
+                        backgroundColor: 'var(--tooltip-bg)',
+                        borderColor: 'var(--border-color)',
                         borderWidth: 1,
                         cornerRadius: 8,
                         callbacks: {
@@ -505,8 +540,12 @@ async function updateTimeoutsChart() {
 
 // ─── Heatmap ──────────────────────────────────────────────────────────
 
+function getCssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
 function getLatencyColor(avgLatency) {
-    if (avgLatency == null) return '#1e293b';      // No data
+    if (avgLatency == null) return getCssVar('--heatmap-empty');      // No data
     
     let excellent = monitorMode === 'http' ? 140 : 65;
     let great = monitorMode === 'http' ? 160 : 85;
@@ -525,7 +564,7 @@ function getLatencyColor(avgLatency) {
 }
 
 function getLossColor(timeoutPct, hasData) {
-    if (!hasData) return '#1e293b';                // No data
+    if (!hasData) return getCssVar('--heatmap-empty');                // No data
     if (timeoutPct <= 2) return '#059669';        // Excellent
     if (timeoutPct > 2 && timeoutPct <= 5) return '#fbbf24';          // Warning
     if (timeoutPct > 5 && timeoutPct <= 20) return '#f59e0b';          // High
@@ -603,7 +642,7 @@ async function updateHeatmap() {
 
                     html += `<div class="heatmap-cell" style="background:${color}" data-tooltip="${tooltip}"></div>`;
                 } else {
-                    html += `<div class="heatmap-cell" style="background:#1e293b" data-tooltip="${date} ${h.toString().padStart(2, '0')}:00 | No data"></div>`;
+                    html += `<div class="heatmap-cell" style="background:var(--heatmap-empty)" data-tooltip="${date} ${h.toString().padStart(2, '0')}:00 | No data"></div>`;
                 }
             }
             html += '</div>';
@@ -778,6 +817,10 @@ document.getElementById('incidents-range').addEventListener('click', (e) => {
 // ─── Initialization ───────────────────────────────────────────────────
 
 async function init() {
+    // Load persisted theme synchronously
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    applyTheme(savedTheme);
+
     // Fetch Configuration Settings
     try {
         const settings = await api('/api/settings');

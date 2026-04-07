@@ -48,6 +48,40 @@
 
     /* Spacing */
     --gap: 20px;
+    /* Dynamic Chart Tokens */
+    --chart-grid: rgba(255, 255, 255, 0.03);
+    --heatmap-empty: #1e293b;
+    --tooltip-bg: rgba(17, 24, 39, 0.95);
+}
+
+:root[data-theme="light"] {
+    /* Background */
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.95);
+    --bg-card-hover: #ffffff;
+    --bg-glass: rgba(0, 0, 0, 0.02);
+    --bg-glass-border: rgba(0, 0, 0, 0.08);
+
+    /* Text */
+    --text-primary: #0f172a;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+
+    /* Borders */
+    --border-color: rgba(0, 0, 0, 0.08);
+
+    /* Shadows */
+    --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.06);
+    --shadow-glow: 0 0 30px rgba(6, 182, 212, 0.2);
+
+    /* Gradients */
+    --gradient-bg: none;
+
+    /* Dynamic Chart Tokens */
+    --chart-grid: rgba(0, 0, 0, 0.06);
+    --heatmap-empty: #f1f5f9;
+    --tooltip-bg: rgba(255, 255, 255, 0.95);
 }
 
 /* ─── Reset & Base ──────────────────────────────────────────────── */
@@ -93,7 +127,7 @@ header {
     align-items: center;
     justify-content: space-between;
     padding: 14px 28px;
-    background: rgba(10, 14, 26, 0.85);
+    background: var(--bg-card);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-color);
@@ -136,6 +170,25 @@ header {
     display: flex;
     align-items: center;
     gap: 16px;
+}
+
+.theme-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-fast);
+}
+
+.theme-toggle:hover {
+    color: var(--accent-primary);
+    background: var(--bg-glass);
+    transform: scale(1.1);
 }
 
 .live-indicator {
@@ -423,18 +476,18 @@ main {
 }
 
 .heatmap-cell {
-    width: 28px;
-    height: 28px;
-    border-radius: 5px;
-    transition: all var(--transition-fast);
-    cursor: default;
-    position: relative;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    transition: var(--transition-fast);
+    cursor: pointer;
+    box-shadow: 0 0 0 1px var(--bg-secondary) inset;
 }
 
 .heatmap-cell:hover {
-    transform: scale(1.2);
-    z-index: 1;
-    box-shadow: 0 0 12px rgba(0, 0, 0, 0.5);
+    transform: scale(1.15) translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    z-index: 10;
 }
 
 #global-tooltip {
@@ -492,12 +545,13 @@ table {
 
 thead th {
     text-align: left;
+    padding: 14px 18px;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
     font-weight: 600;
-    color: var(--text-muted);
-    font-size: 0.75rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    padding: 10px 14px;
+    background: var(--bg-glass);
     border-bottom: 1px solid var(--border-color);
 }
 
