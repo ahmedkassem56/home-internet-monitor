@@ -56,10 +56,12 @@ async def serve_dashboard():
 
 
 @app.get("/api/settings", dependencies=[Depends(verify_auth)])
-async def api_settings():
+def api_settings():
     """Return backend configuration settings to the frontend UI."""
     return {
-        "mode": config.get("mode", "icmp")
+        "mode": config.get("mode", "icmp"),
+        "interval": config.get("interval", 1),
+        "timeout": config.get("timeout", 5),
     }
 
 
@@ -129,7 +131,9 @@ def api_stats(
     else:
         start_ts, end_ts = parse_range(range)
 
-    stats = db.get_stats(start_ts, end_ts)
+    interval = config.get("interval", 1)
+    timeout = config.get("timeout", 5)
+    stats = db.get_stats(start_ts, end_ts, interval=interval, timeout=timeout)
     stats["range"] = range
     stats["start_ts"] = start_ts
     stats["end_ts"] = end_ts
@@ -190,7 +194,9 @@ def api_daily(
     """Get daily summary statistics."""
     now = time.time()
     start_ts = now - (days * 86400)
-    data = db.get_daily_summary(start_ts, now, tz)
+    interval = config.get("interval", 1)
+    timeout = config.get("timeout", 5)
+    data = db.get_daily_summary(start_ts, now, tz, interval=interval, timeout=timeout)
     return {"data": data, "days": days}
 
 
@@ -211,14 +217,21 @@ def api_incidents(
     REQUIRED_GOOD_MINUTES = 3
     
     mode = config.get("mode", "icmp")
+    interval = config.get("interval", 1)
+    ping_timeout = config.get("timeout", 5)
     lat_threshold = 250 if mode == "http" else 150
     
     for b in buckets:
         ts = b["bucket_ts"]
         tc = b["timeout_count"] or 0
         total = b["total_count"] or 1
-        timeout_pct = tc / total
         avg_lat = b["avg_latency"] if b["avg_latency"] is not None else 0
+        
+        success = total - tc
+        up_secs = success * interval
+        down_secs = tc * ping_timeout
+        tot_secs = up_secs + down_secs
+        timeout_pct = (down_secs / tot_secs) if tot_secs > 0 else 0
         
         is_bad = timeout_pct >= 0.5 or avg_lat >= lat_threshold
         

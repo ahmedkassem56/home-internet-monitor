@@ -84,8 +84,8 @@ class PingDatabase:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_stats(self, start_ts: float, end_ts: float) -> dict:
-        """Get aggregated statistics for a time range."""
+    def get_stats(self, start_ts: float, end_ts: float, interval: float = 1.0, timeout: float = 5.0) -> dict:
+        """Get aggregated statistics for a time range, accurately weighing downtime intervals."""
         conn = self._get_conn()
         row = conn.execute(
             """
@@ -116,14 +116,17 @@ class PingDatabase:
             result["p50_latency"] = latencies[int(n * 0.50)]
             result["p95_latency"] = latencies[int(n * 0.95)]
             result["p99_latency"] = latencies[min(int(n * 0.99), n - 1)]
-            result["uptime_pct"] = round(
-                (result["total_pings"] - result["total_timeouts"]) / result["total_pings"] * 100, 3
-            ) if result["total_pings"] > 0 else 100.0
+            
+            success_pings = result["total_pings"] - result["total_timeouts"]
+            uptime_secs = success_pings * interval
+            downtime_secs = result["total_timeouts"] * timeout
+            total_secs = uptime_secs + downtime_secs
+            result["uptime_pct"] = round((uptime_secs / total_secs) * 100, 3) if total_secs > 0 else 100.0
         else:
             result["p50_latency"] = None
             result["p95_latency"] = None
             result["p99_latency"] = None
-            result["uptime_pct"] = 0.0 if result["total_pings"] > 0 else 100.0
+            result["uptime_pct"] = 100.0
 
         return result
 
@@ -155,8 +158,8 @@ class PingDatabase:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_daily_summary(self, start_ts: float, end_ts: float, tz_offset: int = 0) -> list[dict]:
-        """Get daily summary stats."""
+    def get_daily_summary(self, start_ts: float, end_ts: float, tz_offset: int = 0, interval: float = 1.0, timeout: float = 5.0) -> list[dict]:
+        """Get daily summary stats accurately weighting downtime."""
         conn = self._get_conn()
         offset_sec = tz_offset * 60
         rows = conn.execute(
@@ -179,9 +182,14 @@ class PingDatabase:
         results = []
         for row in rows:
             d = dict(row)
-            d["uptime_pct"] = round(
-                (d["total_pings"] - d["total_timeouts"]) / d["total_pings"] * 100, 3
-            ) if d["total_pings"] > 0 else 100.0
+            success_pings = d["total_pings"] - d["total_timeouts"]
+            if d["total_pings"] > 0:
+                uptime_secs = success_pings * interval
+                downtime_secs = d["total_timeouts"] * timeout
+                total_secs = uptime_secs + downtime_secs
+                d["uptime_pct"] = round((uptime_secs / total_secs) * 100, 3) if total_secs > 0 else 100.0
+            else:
+                d["uptime_pct"] = 100.0
             results.append(d)
         return results
 

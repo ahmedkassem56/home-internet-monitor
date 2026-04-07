@@ -151,6 +151,7 @@ def main():
     cleanup_interval = max(3600 // interval, 60)
     ping_count = 0
     bytes_used = 0
+    log_start_time = time.time()
 
     logger.info("Monitoring started. Press Ctrl+C to stop.")
 
@@ -177,23 +178,31 @@ def main():
         # Periodic stats logging (every 60 pings)
         ping_count += 1
         if ping_count % 60 == 0:
-            stats = db.get_stats(start_time - 60, start_time)
+            stats = db.get_stats(log_start_time, start_time, interval=interval, timeout=timeout)
             timeouts = stats.get("total_timeouts", 0)
             avg = stats.get("avg_latency")
             avg_str = f"{avg:.1f}ms" if avg else "N/A"
             
             # Formulate data statistics
             data_kb = bytes_used / 1024
-            daily_multi = 86400 / (60 * interval)  # Number of 60-ping blocks per day
+            
+            # If 60 cycles took e.g. 5 minutes because of timeouts, real elapsed diff provides valid math: 
+            elapsed_log_time = start_time - log_start_time
+            if elapsed_log_time > 0:
+                daily_multi = 86400 / elapsed_log_time
+            else:
+                daily_multi = 86400 / (60 * interval)
+                
             daily_mb = (bytes_used * daily_multi) / (1024 * 1024)
             
             logger.info(
                 f"Last 60 pings: avg={avg_str}, "
                 f"timeouts={timeouts}, "
                 f"total={ping_count}, "
-                f"data={data_kb:.1f} KB (~{daily_mb:.1f} MB/day)"
+                f"data={data_kb:.1f} KB (~{daily_mb:.1f} MB/day calculated from {elapsed_log_time:.1f}s window)"
             )
             bytes_used = 0
+            log_start_time = start_time
 
         # Periodic cleanup
         if ping_count % cleanup_interval == 0:

@@ -27,6 +27,8 @@ let currentRange = '6h';
 let heatmapDays = 7;
 let incidentsDays = 7;
 let monitorMode = 'icmp';
+let pingInterval = 1;
+let pingTimeout = 5;
 
 // ─── API Helpers ──────────────────────────────────────────────────────
 
@@ -400,10 +402,17 @@ async function updateTimeoutsChart() {
         timeoutCounts = sortedBuckets.map(ts => bins[ts].timeouts);
     }
 
-    // Calculate loss percentage per bucket
+    // Calculate loss percentage per bucket weighted by true elapsed time
     let lossPct;
     if (isBucketed) {
-        lossPct = pings.map(p => p.total_count > 0 ? (p.timeout_count / p.total_count * 100) : 0);
+        lossPct = pings.map(p => {
+            if (p.total_count <= 0) return 0;
+            const success = p.total_count - p.timeout_count;
+            const upSecs = success * pingInterval;
+            const downSecs = p.timeout_count * pingTimeout;
+            const totSecs = upSecs + downSecs;
+            return totSecs > 0 ? (downSecs / totSecs) * 100 : 0;
+        });
     } else {
         lossPct = timeoutCounts; // For raw, just show count
     }
@@ -571,7 +580,14 @@ async function updateHeatmap() {
             for (let h = 0; h < 24; h++) {
                 const cell = dateMap[date][h];
                 if (cell) {
-                    const timeoutPct = cell.total_count > 0 ? (cell.timeout_count / cell.total_count * 100) : 0;
+                    const cellTotal = cell.total_count || 0;
+                    const cellTimeouts = cell.timeout_count || 0;
+                    
+                    const cellSuccess = cellTotal - cellTimeouts;
+                    const upSecs = cellSuccess * pingInterval;
+                    const downSecs = cellTimeouts * pingTimeout;
+                    const totSecs = upSecs + downSecs;
+                    const cellLossPct = totSecs > 0 ? (downSecs / totSecs) * 100 : 0;
 
                     let color = '';
                     let tooltip = '';
@@ -581,8 +597,8 @@ async function updateHeatmap() {
                         const avgStr = cell.avg_latency != null ? cell.avg_latency.toFixed(1) + 'ms' : 'N/A';
                         tooltip = `${date} ${h.toString().padStart(2, '0')}:00 | Avg Latency: ${avgStr}`;
                     } else {
-                        color = getLossColor(timeoutPct, true);
-                        tooltip = `${date} ${h.toString().padStart(2, '0')}:00 | Loss: ${timeoutPct.toFixed(2)}% (${cell.timeout_count} timeouts)`;
+                        color = getLossColor(cellLossPct, true);
+                        tooltip = `${date} ${h.toString().padStart(2, '0')}:00 | Loss: ${cellLossPct.toFixed(2)}% (${cell.timeout_count} timeouts)`;
                     }
 
                     html += `<div class="heatmap-cell" style="background:${color}" data-tooltip="${tooltip}"></div>`;
@@ -765,9 +781,9 @@ async function init() {
     // Fetch Configuration Settings
     try {
         const settings = await api('/api/settings');
-        if (settings && settings.mode) {
-            monitorMode = settings.mode;
-        }
+        if (settings && settings.mode) monitorMode = settings.mode;
+        if (settings && settings.interval) pingInterval = settings.interval;
+        if (settings && settings.timeout) pingTimeout = settings.timeout;
     } catch(e) {
         console.error("Failed to load settings:", e);
     }
