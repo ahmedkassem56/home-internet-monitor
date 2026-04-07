@@ -536,6 +536,10 @@ main {
     text-align: right;
     padding-right: 8px;
     flex-shrink: 0;
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    background: var(--bg-card);
 }
 
 .heatmap-hour-labels {
@@ -544,6 +548,7 @@ main {
     margin-left: 93px;
     margin-bottom: 6px;
     width: calc(100% - 93px);
+    min-width: calc(700px - 93px);
 }
 
 .heatmap-hour-label {
