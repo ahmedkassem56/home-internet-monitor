@@ -12,6 +12,7 @@ WorkingDirectory=/opt/internet-monitor
 ExecStart=/opt/internet-monitor/venv/bin/python -m web.app /opt/internet-monitor/config.yaml
 Restart=always
 RestartSec=5
+LimitNOFILE=65536
 
 # Logging
 StandardOutput=journal

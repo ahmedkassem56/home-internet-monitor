@@ -23,8 +23,6 @@ class PingDatabase:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self._local = threading.local()
-        self._connections = []  # Track all connections for cleanup
-        self._lock = threading.Lock()
 
         # Ensure directory exists
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -44,8 +42,6 @@ class PingDatabase:
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA busy_timeout=5000")
             self._local.conn = conn
-            with self._lock:
-                self._connections.append(conn)
         return self._local.conn
 
     def insert_ping(self, timestamp: float, latency_ms: float | None, is_timeout: bool):
@@ -233,15 +229,13 @@ class PingDatabase:
         return result.rowcount
 
     def close(self):
-        """Close all tracked database connections for clean shutdown."""
-        with self._lock:
-            for conn in self._connections:
-                try:
-                    conn.close()
-                except Exception:
-                    pass
-            self._connections.clear()
-        self._local = threading.local()
+        """Close the current thread's database connection for clean shutdown."""
+        if hasattr(self._local, "conn") and self._local.conn is not None:
+            try:
+                self._local.conn.close()
+            except Exception:
+                pass
+            self._local.conn = None
 
     def get_db_info(self) -> dict:
         """Get database size and row count info."""
