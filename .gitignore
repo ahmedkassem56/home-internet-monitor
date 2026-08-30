@@ -20,3 +20,8 @@ deploy.sh
 # IDEs
 .vscode/
 .idea/
+
+# Test
+.pytest_cache/
+.coverage
+htmlcov/
