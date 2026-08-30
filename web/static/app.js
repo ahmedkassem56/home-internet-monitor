@@ -1014,7 +1014,9 @@ async function init() {
 init().catch(console.error);
 
 function clearDB() {
-    document.getElementById('clear-modal').style.display = 'flex';
+    const m = document.getElementById('clear-modal');
+    m.classList.remove('hidden');
+    m.style.display = 'flex';
 }
 function confirmClear() {
     const days = document.getElementById('clear-days').value;
