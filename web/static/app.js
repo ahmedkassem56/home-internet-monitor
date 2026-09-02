@@ -1012,3 +1012,16 @@ async function init() {
 
 // Start
 init().catch(console.error);
+
+function clearDB() {
+    const m = document.getElementById('clear-modal');
+    m.classList.remove('hidden');
+    m.style.display = 'flex';
+}
+function confirmClear() {
+    const days = document.getElementById('clear-days').value;
+    fetch('/api/clear?older_than_days=' + days, {method: 'POST', credentials: 'same-origin'})
+        .then(r => r.json())
+        .then(j => { alert('Done: ' + j.message); document.getElementById('clear-modal').style.display = 'none'; })
+        .catch(e => alert('Failed: ' + e));
+}

@@ -354,6 +354,22 @@ async def api_info():
     }
 
 
+@app.post("/api/clear", dependencies=[Depends(verify_auth)])
+async def api_clear(older_than_days: int = 0):
+    conn = db._get_conn()
+    if older_than_days > 0:
+        cutoff = time.time() - (older_than_days * 86400)
+        conn.execute("DELETE FROM pings WHERE timestamp < ?", (cutoff,))
+    else:
+        conn.execute("DELETE FROM pings")
+    conn.commit()
+    # VACUUM cannot run inside a transaction — use isolation_level=None
+    vac_conn = db._get_conn()
+    vac_conn.isolation_level = None
+    vac_conn.execute("VACUUM")
+    return {"message": "Database cleared"}
+
+
 # ─── Run ───────────────────────────────────────────────────────────────
 
 def main():
